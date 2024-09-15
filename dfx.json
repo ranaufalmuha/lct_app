@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "lct_app_backend": {
+      "main": "src/lct_app_backend/main.mo",
+      "type": "motoko"
+    },
+    "lct_app_frontend": {
+      "dependencies": [
+        "lct_app_backend"
+      ],
+      "source": [
+        "src/lct_app_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "lct_app_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
