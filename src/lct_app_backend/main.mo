@@ -6,6 +6,7 @@ import Time "mo:base/Time";
 import Nat "mo:base/Nat";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
+import Result "mo:base/Result";
 
 import CertTree "mo:cert/CertTree";
 
@@ -504,4 +505,37 @@ shared (_init_msg) actor class Example(
 
     };
   };
+
+  public shared (msg) func test(token_ids : OwnerOfRequest) : async Text {
+    let tes : Text = Principal.toText(Principal.fromActor(this));
+    return tes;
+  };
+
+  public shared (msg) func claimNFT(token_ids : OwnerOfRequest) : async Result.Result<Nat, Text> {
+    // 1. Periksa apakah pengguna sudah memiliki token ini
+    // let ownerResult = icrc7_owner_of(tokenId);
+
+    if (icrc7_owner_of(token_ids) != Principal.fromActor(this)) {
+      return #err("This NFT Already Claimed");
+    };
+
+    // 3. Lakukan transfer NFT dari kontrak ke pengguna
+    let transferArgs : TransferArgs = {
+      to = {
+        owner = msg.caller;
+        subaccount = null;
+      };
+      token_id = token_ids[0];
+      memo = null;
+      from_subaccount = null;
+      created_at_time = null;
+    };
+
+    let transferResult = icrc7().transfer(msg.caller, [transferArgs]);
+    return #ok(1);
+    // return transferResult;
+
+    // 4. Cek hasil transfer
+  };
+
 };

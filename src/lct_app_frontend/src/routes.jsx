@@ -4,9 +4,12 @@ import ProtectedRoute from './components/ProtectedRoute';
 import App from './App';
 import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
-import Sidebar from './components/Sidebar';
+import Sidebar from './components/sidebars/Sidebar';
 import MintNft from './pages/admin/MintNft';
 import ListNft from './pages/admin/ListNft';
+import AdminSidebar from './components/sidebars/AdminSidebar';
+import NotClaimed from './pages/admin/NotClaimed';
+import { ClaimPage } from './pages/ClaimPage';
 
 const router = createBrowserRouter([
     // dummy 
@@ -33,14 +36,28 @@ const router = createBrowserRouter([
     },
     {
         path: "/admin",
-        element: <Sidebar />,
+        element: (
+            <ProtectedRoute>
+                <Sidebar />
+            </ProtectedRoute>
+        ),
         children: [
             {
                 index: true,
                 element: (
-                    <ProtectedRoute>
-                        <ListNft />
-                    </ProtectedRoute>
+                    <div className="">
+                        <AdminSidebar />
+                        <ListNft />,
+                    </div>
+                ),
+            },
+            {
+                path: "notclaimed",
+                element: (
+                    <div className="">
+                        <AdminSidebar />
+                        <NotClaimed />,
+                    </div>
                 ),
             },
             {
@@ -48,6 +65,14 @@ const router = createBrowserRouter([
                 element: <MintNft />,
             },
         ]
+    },
+    {
+        path: "/claim/:nftid",
+        element: (
+            <ProtectedRoute>
+                <ClaimPage />
+            </ProtectedRoute>
+        ),
     },
 ]);
 

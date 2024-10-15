@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { lct_app_backend } from 'declarations/lct_app_backend';
-import { NFTComponentAdmin } from '../../components/NFTs/NFTComponentAdmin';
+import { NFTComponentNotClaimed } from '../../components/NFTs/NFTComponentNotClaimed';
 
-const ListNft = () => {
+const NotClaimed = () => {
     const [totalSupply, setTotalSuppy] = useState(3);
 
     useEffect(() => {
@@ -21,7 +21,7 @@ const ListNft = () => {
                         < div className="container max-sm:p-4 grid grid-cols-4 max-md:grid-cols-2 max-lg:grid-cols-3 gap-4 w-full justify-items-center duration-300">
                             {/* Show Component */}
                             {Array.from({ length: totalSupply }).map((_, index) => (
-                                <NFTComponentAdmin key={index} />
+                                <NFTComponentNotClaimed key={index} />
                             ))}
                         </div>
                     )
@@ -31,4 +31,4 @@ const ListNft = () => {
     );
 };
 
-export default ListNft;
+export default NotClaimed;

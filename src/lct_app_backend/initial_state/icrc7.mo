@@ -5,8 +5,8 @@ module {
     ?{
       symbol = ?"LCT";
       name = ?"Lost Club Toys";
-      description = ?"Lost Club Toys (LCT) is the official mascot for the Token2049 after-party.";
-      logo = ?"https://internetcomputer.org/img/ethdenver/astronaut.webp";
+      description = ?"Dive into the world of the Lost Club Toys. A fluffy collection of 3D cuteness. Made for good vibes and real world surprises!";
+      logo = ?"http://bd3sg-teaaa-aaaaa-qaaba-cai.localhost:8000/images/FinalLogo.jpeg";
       supply_cap = null;
       allow_transfers = null;
       max_query_batch_size = ?100;

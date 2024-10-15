@@ -18,6 +18,14 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     };
 
+    const logout = async () => {
+        const authClient = await AuthClient.create();
+        await authClient.logout({
+            returnTo: '/',  // Redirect to the homepage or your preferred route after logout
+        });
+        setPrincipal(null);  // Clear the principal state
+    };
+
     useEffect(() => {
         checkAuth();
     }, []);
