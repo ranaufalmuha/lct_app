@@ -1,19 +1,44 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from './../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { NFTComponent } from '../components/NFTs/NFTComponent';
+import { lct_app_backend } from 'declarations/lct_app_backend';
+import { Principal } from '@dfinity/principal';
 
 function Home() {
     const { principal, logout } = useAuth();
-    const [totalSupply, setTotalSuppy] = useState(3);
+    const [totalSupply, setTotalSupply] = useState(0);
     const navigate = useNavigate();
     const [showAlert, setShowAlert] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [nftData, setNftData] = useState([]);
 
     const handleLogout = async () => {
         await logout();
         navigate('/');
     };
+
+    useEffect(() => {
+        const fetchNftData = async () => {
+            try {
+                const owner = {
+                    owner: Principal.fromText(principal),
+                    subaccount: []
+                };
+                const start = [];
+                const length = [];
+
+                const tokens = await lct_app_backend.icrc7_tokens_of(owner, start, length);
+                setNftData(tokens);
+                setTotalSupply(tokens.length);
+                console.log("Fetched tokens:", tokens);
+            } catch (error) {
+                console.error("Error fetching NFTs: ", error);
+            }
+        };
+
+        fetchNftData();
+    }, []);
 
     function copyToClipboard() {
         navigator.clipboard.writeText(principal);
@@ -70,12 +95,18 @@ function Home() {
 
             {/* NFTs  */}
             <section className=' flex justify-center mt-5'>
-                <div className={`container max-sm:p-4 grid grid-cols-4 max-md:grid-cols-2 max-lg:grid-cols-3 gap-4 w-full justify-items-center duration-300`}>
-                    {/* Show Component */}
-                    {Array.from({ length: totalSupply }).map((_, index) => (
-                        <NFTComponent key={index} />
-                    ))}
-                </div>
+                {totalSupply <= 0 ? (
+                    <div className="flex justify-center w-full text-disabled">
+                        <p>you don't have any nft</p>
+                    </div>
+                ) : (
+                    <div className={`container max-sm:p-4 grid grid-cols-4 max-md:grid-cols-2 max-lg:grid-cols-3 gap-4 w-full justify-items-center duration-300`}>
+                        {/* Show Component */}
+                        {nftData.map((tokenId, index) => (
+                            <NFTComponent key={index} NFTId={tokenId} />
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* Modal */}
@@ -85,12 +116,12 @@ function Home() {
                     <div className="fixed inset-0 bg-black opacity-50 transition-opacity" onClick={closeModal}></div>
 
                     {/* Modal content */}
-                    <div className="bg-white p-6 rounded-lg shadow-lg z-10 transition-opacity">
+                    <div className="bg-white p-6 m-6 rounded-lg shadow-lg z-10 transition-opacity">
                         <p className="text-xl font-bold mb-4">Principal ID</p>
                         <div className="flex flex-col">
-                            <button onClick={copyToClipboard} className='hover:text-gray-800 text-disabled  text-sm max-sm:hidden py-2 px-4  border hover:border-gray-800 border-disabled rounded-md duration-300 flex gap-2 items-center'>
+                            <button onClick={copyToClipboard} className='hover:text-gray-800 text-disabled  text-sm py-2 px-4  border hover:border-gray-800 border-disabled rounded-md duration-300 flex gap-2 items-center'>
                                 <img src="./assets/copy.png" className='w-5 aspect-square object-cover' alt="" />
-                                <p>{principal}</p>
+                                <p className=''>{principal}</p>
                             </button>
                             <button onClick={closeModal} className="mt-4 px-4 py-2 bg-gradient-to-b from-black via-black to-gray-800 text-white rounded hover:bg-gradient-to-r duration-300">Close</button>
                         </div>

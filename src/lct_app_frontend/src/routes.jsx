@@ -56,13 +56,13 @@ const router = createBrowserRouter([
                 element: (
                     <div className="">
                         <AdminSidebar />
-                        <NotClaimed />,
+                        <NotClaimed />
                     </div>
                 ),
             },
             {
                 path: "mintnft",
-                element: <MintNft />,
+                element: <MintNft />
             },
         ]
     },

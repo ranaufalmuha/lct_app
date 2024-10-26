@@ -506,36 +506,69 @@ shared (_init_msg) actor class Example(
     };
   };
 
-  public shared (msg) func test(token_ids : OwnerOfRequest) : async Text {
-    let tes : Text = Principal.toText(Principal.fromActor(this));
-    return tes;
-  };
-
-  public shared (msg) func claimNFT(token_ids : OwnerOfRequest) : async Result.Result<Nat, Text> {
-    // 1. Periksa apakah pengguna sudah memiliki token ini
-    // let ownerResult = icrc7_owner_of(tokenId);
-
-    if (icrc7_owner_of(token_ids) != Principal.fromActor(this)) {
-      return #err("This NFT Already Claimed");
+  // Improved claimNFT function with better error handling and validation
+  public shared (msg) func claimNFT(token_ids : [Nat]) : async Result.Result<Nat, Text> {
+    // Validate input
+    if (token_ids.size() == 0) {
+      return #err("No token ID provided");
     };
 
-    // 3. Lakukan transfer NFT dari kontrak ke pengguna
+    let token_id = token_ids[0];
+
+    // Get caller principal
+    let caller = msg.caller;
+
+    // Return error if caller is anonymous
+    if (Principal.isAnonymous(caller)) {
+      return #err("Anonymous users cannot claim NFTs. Please login first.");
+    };
+
+    // Check if the NFT exists and get current owner
+    let ownerResult = switch (icrc7().get_token_owners(token_ids)) {
+      case (#ok(owners)) {
+        if (owners.size() == 0) {
+          return #err("Token does not exist");
+        };
+        owners[0];
+      };
+      case (#err(error)) {
+        return #err("Error checking token ownership: " # debug_show (error));
+      };
+    };
+
+    // Verify the NFT is owned by this canister
+    let canister_principal = Principal.fromActor(this);
+    if (ownerResult != ?{ owner = canister_principal; subaccount = null }) {
+      return #err("NFT is not available for claiming");
+    };
+
+    // Prepare transfer arguments with explicit caller as destination
     let transferArgs : TransferArgs = {
       to = {
-        owner = msg.caller;
+        owner = caller; // Using the caller's principal directly
         subaccount = null;
       };
-      token_id = token_ids[0];
+      token_id = token_id;
       memo = null;
       from_subaccount = null;
       created_at_time = null;
     };
 
-    let transferResult = icrc7().transfer(msg.caller, [transferArgs]);
-    return #ok(1);
-    // return transferResult;
+    // Execute transfer
+    let transferResult = icrc7().transfer(canister_principal, [transferArgs]);
 
-    // 4. Cek hasil transfer
+    // Handle transfer result
+    switch (transferResult[0]) {
+      case (null) {
+        #err("Transfer failed: Unexpected null result");
+      };
+      case (? #Ok(val)) {
+        #ok(val);
+      };
+      case (? #Err(error)) {
+        #err("Transfer failed: " # debug_show (error));
+      };
+    };
   };
 
 };
