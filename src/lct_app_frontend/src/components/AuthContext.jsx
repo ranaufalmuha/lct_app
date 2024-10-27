@@ -77,15 +77,24 @@ export const AuthProvider = ({ children }) => {
         try {
             const authClient = await AuthClient.create();
 
-            await authClient.login({
+            const loginOptions = {
                 identityProvider: 'https://identity.ic0.app/#authorize',
+                windowOpenerFeatures: `
+                    width=800,
+                    height=600,
+                    left=${(window.screen.width - 800) / 2},
+                    top=${(window.screen.height - 600) / 2},
+                    toolbar=0,
+                    location=0,
+                    menubar=0,
+                    status=0
+                `,
                 onSuccess: async () => {
                     const identity = authClient.getIdentity();
                     const principalId = identity.getPrincipal().toText();
                     console.log("Login successful, principal:", principalId);
                     setPrincipal(principalId);
 
-                    // Create and set authenticated actor after successful login
                     const actor = await createAuthenticatedActor(identity);
                     if (actor) {
                         setAuthenticatedActor(actor);
@@ -94,10 +103,19 @@ export const AuthProvider = ({ children }) => {
                 },
                 onError: (error) => {
                     console.error("Login failed:", error);
+                    if (error.message?.includes('popup')) {
+                        alert("Please allow popups for this site to login. You can do this by clicking the 'aA' button in Safari's address bar and enabling pop-up windows.");
+                    }
                 }
-            });
+            };
+
+            await authClient.login(loginOptions);
         } catch (error) {
             console.error("Login error:", error);
+            // Check if error is popup related
+            if (error.message?.includes('popup')) {
+                alert("Please allow popups for this site to login. Check your browser settings.");
+            }
         }
     };
 

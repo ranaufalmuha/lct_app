@@ -7,7 +7,7 @@ import { idlFactory } from "../../../declarations/lct_app_backend/index.js";
 
 export const ClaimPage = () => {
     const { nftid } = useParams();
-    const { authenticatedActor, principal } = useAuth();
+    const { authenticatedActor, principal, logout } = useAuth();
     const [nftData, setNftData] = useState({
         name: 'Loading...',
         imageUri: '/images/loadingImg.png'
@@ -16,6 +16,7 @@ export const ClaimPage = () => {
     const [error, setError] = useState(null);
     const [claimSuccess, setClaimSuccess] = useState(false);
     const [fetchingData, setFetchingData] = useState(false);
+
 
     const NFTId = Number(nftid);
     const displayId = String(NFTId);
@@ -159,8 +160,40 @@ export const ClaimPage = () => {
         return `${baseClass} hover:scale-105`;
     };
 
+    const handleLogout = async () => {
+        await logout();
+        navigate('/');
+    };
+
+    function copyToClipboard() {
+        navigator.clipboard.writeText(principal);
+
+        // Tampilkan alert
+        setShowAlert(true);
+
+        // Sembunyikan alert setelah 1 detik (1000 ms)
+        setTimeout(() => {
+            setShowAlert(false);
+        }, 1000);
+    }
+
     return (
         <main className='flex justify-center'>
+            {/* header  */}
+            <nav className='container mb-5'>
+                <div className="flex items-center justify-between">
+                    <div className="w-40 max-sm:w-4"></div>
+                    <div className="flex justify-center items-center">
+                        <img src="./images/logo-full-black.png" className='w-7 invert' alt="" />
+                        <p className='text-center'>Lost Club Toys</p>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        <button onClick={copyToClipboard} className='w-36 text-disabled hover:text-white  relative line-clamp-1 text-sm max-sm:hidden py-1 px-1  border border-disabled hover:border-white rounded-md duration-300 leading-6'>{principal}</button>
+                        <button onClick={handleLogout}><img src="./assets/logout.png" alt="" className='w-4 aspect-square' /></button>
+                    </div>
+
+                </div>
+            </nav>
             <div className="container max-w-[400px] p-3 flex flex-col gap-5">
                 <img
                     src={nftData.imageUri}
