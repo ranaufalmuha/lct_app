@@ -209,7 +209,7 @@ function Home() {
             <div
                 className={`${showAlert ? 'opacity-100' : 'opacity-0'
                     } transition-opacity duration-500 ${copyStatus === 'error' ? 'bg-red-100 border-red-500 text-red-700' : 'bg-green-100 border-green-500 text-green-700'
-                    } border-l-4 p-3 fixed top-4 right-4 flex flex-col gap-1 w-[300px] z-50 shadow-lg`}
+                    } border-l-4 p-3 fixed top-4 left-4 flex flex-col gap-1 w-[300px] z-50 shadow-lg`}
                 role="alert"
             >
                 <p className="font-bold text-sm">{alertMessage.title}</p>

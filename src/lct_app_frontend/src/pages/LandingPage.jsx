@@ -7,6 +7,35 @@ function LandingPage() {
     const location = useLocation();
     const { principal, login } = useAuth();
     const [showInstructions, setShowInstructions] = useState(false);
+    const [social] = useState([
+        {
+            name: "website",
+            icon: "./assets/web.png",
+            url: "https://lostclubtoys.com/",
+        },
+        {
+            name: "linkedin",
+            icon: "./assets/linkedin.png",
+            url: "https://www.linkedin.com/company/lost-club-toys/",
+        },
+        {
+            name: "instagram",
+            icon: "./assets/instagram.png",
+            url: "https://www.instagram.com/lostclubtoys/",
+        },
+        {
+            name: "telegram",
+            icon: "./assets/telegram.png",
+            url: "https://t.me/lostclubtoys",
+        },
+        {
+            name: "github",
+            icon: "./assets/github.png",
+            url: "https://github.com/ranaufalmuha/lct_app",
+        }
+    ]
+
+    );
 
     useEffect(() => {
         if (principal) {
@@ -46,23 +75,60 @@ function LandingPage() {
     };
 
     return (
-        <main className=''>
-            <section className='h-[45vh] min-h-[400px] bg-gradient-to-b from-black via-black to-gray-800 text-white p-6 flex flex-col'>
-                <div className="flex justify-center items-center">
+        <main className='duration-300'>
+
+            <div className="absolute inset-0 -z-20">
+                <video
+                    autoPlay // Changed from autoplay to autoPlay (React JSX naming)
+                    muted
+                    loop
+                    playsInline // Added for better mobile support
+                    className="w-full h-full object-cover"
+                >
+                    <source
+                        src="./videos/lost_club_toys.mp4"
+                        type="video/mp4"
+                    />
+                    Your browser does not support HTML5 video.
+                </video>
+            </div>
+
+            <section className='h-dvh text-white p-8 md:p-12 flex flex-col relative overflow-hidden'>
+                <div className="flex justify-center items-center ">
                     <img src="./images/logo-full-black.png" className='w-7 invert' alt="" />
                     <p className='text-center'>Lost Club Toys</p>
                 </div>
-                <div className="flex flex-col gap-8 items-center justify-center w-full h-full">
-                    <p className='text-center font-bold max-w-[600px] text-2xl'>
+
+                {/* content */}
+                <div className="flex flex-col gap-5 items-start justify-center w-full md:max-w-[500px] h-full duration-300">
+                    <p className='text-5xl max-md:w-full max-md:text-center duration-300'>100% On Chain Wallet</p>
+                    <p className='text-start max-md:text-center text-xl duration-300'>
                         Earn cool NFTs! Grab your exclusive LCT NFT at the Token2049 afterparty.
                     </p>
-                    <button
-                        className='px-9 py-4 rounded-full bg-white text-black flex justify-center items-center gap-1 hover:scale-105 duration-300'
-                        onClick={handleLogin}
-                    >
-                        <p>Authenticate</p>
-                        <img src="./images/logo-full-black.png" className='w-6' alt="" />
-                    </button>
+                    <div className="flex w-full max-md:justify-center duration-300">
+                        <button
+                            className='px-9 py-4 rounded-xl bg-white text-black flex justify-center items-center gap-1 hover:scale-105 duration-300'
+                            onClick={handleLogin}
+                        >
+                            <p>Authenticate</p>
+                            <img src="./images/logo-full-black.png" className='w-6' alt="" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* footer  */}
+                <div className="flex max-lg:flex-col items-center justify-between relative overflow-hidden gap-3 duration-300">
+                    <div className="lg:absolute w-full z-0 flex-grow text-center">
+                        <p className='text-sm'>&copy; 2024 Developed by Lost Club Toys</p>
+                    </div>
+                    <div className="flex items-center max-lg:gap-5 gap-3 p-1 duration-300 z-10">
+                        {social.map((item) => (
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className='aspect-square bg-white rounded-lg hover:scale-110 duration-300' key={item.name}>
+                                <img src={item.icon} className='p-2 w-10 h-10 object-contain' alt={item.name} />
+                            </a>
+                        ))}
+                    </div>
+                    <div className="my-2"></div>
                 </div>
             </section>
 
