@@ -6,7 +6,7 @@ const ProtectedRoute = ({ children }) => {
     const { principal, loading } = useAuth();
     const location = useLocation();
 
-    console.log("Protected Route state:", { principal, loading, path: location.pathname });
+    // console.log("Protected Route state:", { principal, loading, path: location.pathname });
 
     if (loading) {
         return (

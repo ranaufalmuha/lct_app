@@ -25,7 +25,6 @@ export const AuthProvider = ({ children }) => {
                 canisterId
             });
 
-            console.log("Created authenticated actor with canisterId:", canisterId);
             return actor;
         } catch (error) {
             console.error("Error creating authenticated actor:", error);
@@ -35,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
-            console.log("Starting auth check...");
+            // console.log("Starting auth check...");
             const authClient = await AuthClient.create({
                 idleOptions: {
                     disableDefaultIdleCallback: true,
@@ -44,22 +43,22 @@ export const AuthProvider = ({ children }) => {
             });
 
             const isAuthenticated = await authClient.isAuthenticated();
-            console.log("Is authenticated:", isAuthenticated);
+            // console.log("Is authenticated:", isAuthenticated);
 
             if (isAuthenticated) {
                 const identity = authClient.getIdentity();
                 const principalId = identity.getPrincipal().toText();
-                console.log("Setting principal:", principalId);
+                // console.log("Setting principal:", principalId);
                 setPrincipal(principalId);
 
                 // Create and set authenticated actor
                 const actor = await createAuthenticatedActor(identity);
                 if (actor) {
                     setAuthenticatedActor(actor);
-                    console.log("Authenticated actor set successfully");
+                    // console.log("Authenticated actor set successfully");
                 }
             } else {
-                console.log("No authentication found");
+                // console.log("No authentication found");
                 setPrincipal(null);
                 setAuthenticatedActor(null);
             }
@@ -68,7 +67,7 @@ export const AuthProvider = ({ children }) => {
             setPrincipal(null);
             setAuthenticatedActor(null);
         } finally {
-            console.log("Completing auth check");
+            // console.log("Completing auth check");
             setLoading(false);
         }
     };
@@ -92,13 +91,13 @@ export const AuthProvider = ({ children }) => {
                 onSuccess: async () => {
                     const identity = authClient.getIdentity();
                     const principalId = identity.getPrincipal().toText();
-                    console.log("Login successful, principal:", principalId);
+                    // console.log("Login successful, principal:", principalId);
                     setPrincipal(principalId);
 
                     const actor = await createAuthenticatedActor(identity);
                     if (actor) {
                         setAuthenticatedActor(actor);
-                        console.log("Authenticated actor set after login");
+                        // console.log("Authenticated actor set after login");
                     }
                 },
                 onError: (error) => {
@@ -132,7 +131,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        console.log("Auth Provider mounted");
         checkAuth();
     }, []);
 
@@ -145,12 +143,6 @@ export const AuthProvider = ({ children }) => {
         checkAuth,
         authenticatedActor
     };
-
-    console.log("Auth Context state:", {
-        principal,
-        loading,
-        hasAuthenticatedActor: !!authenticatedActor
-    });
 
     return (
         <AuthContext.Provider value={value}>

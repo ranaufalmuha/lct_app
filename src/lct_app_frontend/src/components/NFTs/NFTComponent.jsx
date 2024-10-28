@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { lct_app_backend } from 'declarations/lct_app_backend';
+import { Principal } from '@dfinity/principal';
+import { useAuth } from './../AuthContext';
 
-export const NFTComponent = ({ NFTId }) => {
+export const NFTComponent = ({ NFTId, onTransferSuccess }) => {
+    const { authenticatedActor } = useAuth();
     const [isModalNFTOpen, setIsModalNFTOpen] = useState(false);
     const [nftData, setNftData] = useState({
         name: 'Loading...',
         imageUri: './images/loadingImg.png'
     });
+    const [recipientPrincipal, setRecipientPrincipal] = useState('');
+    const [transferStatus, setTransferStatus] = useState('');
 
     const displayId = typeof NFTId === 'bigint' ? NFTId.toString() :
         Array.isArray(NFTId) ? Number(NFTId).toString() :
@@ -14,10 +18,8 @@ export const NFTComponent = ({ NFTId }) => {
 
     useEffect(() => {
         const fetchNftData = async () => {
-
             try {
-                const response = await lct_app_backend.icrc7_token_metadata([NFTId]);
-                console.log('Raw response:', response);
+                const response = await authenticatedActor.icrc7_token_metadata([NFTId]);
 
                 if (response?.[0]?.[0]) {
                     const metadataObj = {};
@@ -43,13 +45,65 @@ export const NFTComponent = ({ NFTId }) => {
             }
         };
 
-        if (NFTId !== undefined) {
+        if (NFTId !== undefined && authenticatedActor) {
             fetchNftData();
         }
-    }, [NFTId]);
+    }, [NFTId, authenticatedActor]);
+
+    const handleTransfer = async () => {
+        if (!recipientPrincipal.trim()) {
+            setTransferStatus('Please enter a recipient Principal ID');
+            return;
+        }
+
+        try {
+            let recipientPrincipalObj;
+            try {
+                recipientPrincipalObj = Principal.fromText(recipientPrincipal.trim());
+            } catch (e) {
+                setTransferStatus('Invalid Principal ID format');
+                return;
+            }
+
+            const transferArgs = [{
+                to: {
+                    owner: recipientPrincipalObj,
+                    subaccount: []
+                },
+                token_id: BigInt(NFTId),
+                memo: [],
+                from_subaccount: [],
+                created_at_time: []
+            }];
+
+            const result = await authenticatedActor.icrc7_transfer(transferArgs);
+
+            setTransferStatus('success');
+            setRecipientPrincipal('');
+
+            // Call the refresh function from props
+            if (onTransferSuccess) {
+                setTimeout(() => {
+                    onTransferSuccess();
+                }, 1000);
+            }
+
+            setTimeout(() => {
+                closeModalNFT();
+            }, 1000);
+
+        } catch (error) {
+            console.error('Transfer error:', error);
+            setTransferStatus('Failed to transfer NFT');
+        }
+    };
 
     const openModalNFT = () => setIsModalNFTOpen(true);
-    const closeModalNFT = () => setIsModalNFTOpen(false);
+    const closeModalNFT = () => {
+        setIsModalNFTOpen(false);
+        setTransferStatus('');
+        setRecipientPrincipal('');
+    };
 
     return (
         <div className="">
@@ -57,7 +111,7 @@ export const NFTComponent = ({ NFTId }) => {
                 <div className="w-full aspect-square rounded-2xl max-md:rounded-xl overflow-hidden">
                     <img
                         src={nftData.imageUri}
-                        className='w-52 aspect-square bg-black/10'
+                        className='w-full aspect-square bg-black/10'
                         alt=""
                         onError={(e) => {
                             e.target.src = './images/loadingImg.png';
@@ -90,11 +144,30 @@ export const NFTComponent = ({ NFTId }) => {
                                 <div className="flex flex-col gap-1">
                                     <p className='text-sm text-disabled'>Send NFT</p>
                                     <div className="flex gap-1">
-                                        <input type="text" placeholder='Principal Id' className='w-full border border-disabled rounded-lg px-3 py-1 text-sm' />
-                                        <button className='border border-disabled p-1 rounded-lg overflow-hidden hover:scale-105 duration-300'>
+                                        <input
+                                            type="text"
+                                            placeholder='Principal Id'
+                                            value={recipientPrincipal}
+                                            onChange={(e) => setRecipientPrincipal(e.target.value)}
+                                            className='w-full border border-disabled rounded-lg px-3 py-1 text-sm'
+                                        />
+                                        <button
+                                            onClick={handleTransfer}
+                                            className='border border-disabled p-1 rounded-lg overflow-hidden hover:scale-105 duration-300'
+                                        >
                                             <img src="./assets/send.png" className='w-6 h-6 object-contain' alt="" />
                                         </button>
                                     </div>
+                                    {transferStatus && (
+                                        <p className={`text-sm mt-2 ${transferStatus === 'success'
+                                            ? 'text-green-500'
+                                            : 'text-red-500'
+                                            }`}>
+                                            {transferStatus === 'success'
+                                                ? 'NFT transferred successfully!'
+                                                : transferStatus}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className=""></div>
                             </div>
@@ -105,3 +178,5 @@ export const NFTComponent = ({ NFTId }) => {
         </div>
     );
 };
+
+export default NFTComponent;

@@ -7,6 +7,7 @@ import Nat "mo:base/Nat";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
 import Result "mo:base/Result";
+import TrieSet "mo:base/TrieSet";
 
 import CertTree "mo:cert/CertTree";
 
@@ -18,13 +19,84 @@ import ICRC7Default "./initial_state/icrc7";
 import ICRC37Default "./initial_state/icrc37";
 import ICRC3Default "./initial_state/icrc3";
 
-shared (_init_msg) actor class Example(
+shared (_init_msg) actor class LCT(
   _args : {
     icrc7_args : ?ICRC7.InitArgs;
     icrc37_args : ?ICRC37.InitArgs;
     icrc3_args : ICRC3.InitArgs;
   }
 ) = this {
+
+  // Use a simple array for controllers instead of TrieSet
+  private stable var controllers : [Principal] = [_init_msg.caller];
+
+  // Function to check if a principal is a controller
+  private func isController(principal : Principal) : Bool {
+    for (controller in controllers.vals()) {
+      if (Principal.equal(controller, principal)) {
+        return true;
+      };
+    };
+    false;
+  };
+
+  // Add a public version that uses msg.caller
+  public shared (msg) func checkIsController() : async Bool {
+    isController(msg.caller);
+  };
+
+  // Function to add a controller
+  public shared ({ caller }) func addController(newController : Principal) : async Result.Result<(), Text> {
+    if (not isController(caller)) {
+      return D.trap("Unauthorized: Only controllers can add new controllers");
+    };
+
+    if (Principal.isAnonymous(newController)) {
+      return D.trap("Cannot add anonymous principal as controller");
+    };
+
+    // Check if already a controller
+    if (isController(newController)) {
+      return D.trap("Principal is already a controller");
+    };
+
+    // Add new controller
+    controllers := Array.append(controllers, [newController]);
+    #ok();
+  };
+
+  // Function to remove a controller
+  public shared ({ caller }) func removeController(controllerToRemove : Principal) : async Result.Result<(), Text> {
+    if (not isController(caller)) {
+      return D.trap("Unauthorized: Only controllers can remove controllers");
+    };
+
+    if (controllers.size() <= 1) {
+      return D.trap("Cannot remove the last controller");
+    };
+
+    // Create new array without the controller to remove
+    let tempBuffer = Buffer.Buffer<Principal>(controllers.size());
+    for (controller in controllers.vals()) {
+      if (not Principal.equal(controller, controllerToRemove)) {
+        tempBuffer.add(controller);
+      };
+    };
+
+    if (tempBuffer.size() == controllers.size()) {
+      return D.trap("Controller not found");
+    };
+
+    controllers := Buffer.toArray(tempBuffer);
+    #ok();
+  };
+
+  // Function to list all controllers
+  public query func listControllers() : async [Principal] {
+    controllers;
+  };
+
+  // ================================================================
 
   public shared (msg) func whoami() : async Principal {
     msg.caller;
@@ -450,7 +522,9 @@ shared (_init_msg) actor class Example(
   /////////
 
   public shared (msg) func icrcX_mint(tokens : ICRC7.SetNFTRequest) : async [ICRC7.SetNFTResult] {
-
+    if (not isController(msg.caller)) {
+      D.trap("Unauthorized: Only controllers can mint tokens");
+    };
     //for now we require an owner to mint.
     switch (icrc7().set_nfts<system>(msg.caller, tokens, true)) {
       case (#ok(val)) val;

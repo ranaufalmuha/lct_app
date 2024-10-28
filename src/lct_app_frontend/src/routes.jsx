@@ -1,7 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
-import App from './App';
 import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
 import Sidebar from './components/sidebars/Sidebar';
@@ -10,17 +9,9 @@ import ListNft from './pages/admin/ListNft';
 import AdminSidebar from './components/sidebars/AdminSidebar';
 import NotClaimed from './pages/admin/NotClaimed';
 import { ClaimPage } from './pages/ClaimPage';
+import AddAdmin from './pages/admin/AddAdmin';
 
 const router = createBrowserRouter([
-    // dummy 
-    {
-        path: "/app",
-        element: (
-            <ProtectedRoute>
-                <App />
-            </ProtectedRoute>
-        ),
-    },
     // real 
     {
         path: "/",
@@ -45,7 +36,7 @@ const router = createBrowserRouter([
             {
                 index: true,
                 element: (
-                    <div className="">
+                    <div>
                         <AdminSidebar />
                         <ListNft />,
                     </div>
@@ -54,7 +45,7 @@ const router = createBrowserRouter([
             {
                 path: "notclaimed",
                 element: (
-                    <div className="">
+                    <div>
                         <AdminSidebar />
                         <NotClaimed />
                     </div>
@@ -63,6 +54,10 @@ const router = createBrowserRouter([
             {
                 path: "mintnft",
                 element: <MintNft />
+            },
+            {
+                path: "addadmin",
+                element: <AddAdmin />
             },
         ]
     },

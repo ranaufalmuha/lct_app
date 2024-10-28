@@ -18,7 +18,6 @@ export const NFTComponentNotClaimed = ({ NFTId, qrcodeLink }) => {
         const fetchNftData = async () => {
             try {
                 const response = await lct_app_backend.icrc7_token_metadata([NFTId]);
-                console.log('Raw response:', response);
 
                 if (response?.[0]?.[0]) {
                     const metadataObj = {};
@@ -33,9 +32,6 @@ export const NFTComponentNotClaimed = ({ NFTId, qrcodeLink }) => {
                     });
                     const [name] = Object.keys(metadataObj);
                     const imageUrl = metadataObj[name];
-
-                    console.log('Name:', name);
-                    console.log('Image URL:', imageUrl);
 
                     setNftData({
                         name: name,
@@ -61,35 +57,48 @@ export const NFTComponentNotClaimed = ({ NFTId, qrcodeLink }) => {
     const downloadQRCode = () => {
         try {
             const svg = qrRef.current.querySelector('svg');
-            if (!svg) return;
+            if (!svg) {
+                setDownloadError('QR Code not found');
+                return;
+            }
 
-            const originalStyle = svg.style.cssText;
-            svg.style.backgroundColor = 'white';
-            const svgData = new XMLSerializer().serializeToString(svg);
-            const canvas = document.createElement('canvas');
-            canvas.width = 1024;
-            canvas.height = 1024;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
+            // Create a new SVG with padding and background
+            const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            wrapper.setAttribute('width', '1024');
+            wrapper.setAttribute('height', '1024');
+            wrapper.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-            img.onload = () => {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                const pngFile = canvas.toDataURL('image/png', 1.0);
-                const downloadLink = document.createElement('a');
-                downloadLink.href = pngFile;
-                downloadLink.download = `${nftData.name}_${displayId}_QRCode.png`;
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                svg.style.cssText = originalStyle;
-            };
+            // Add white background
+            const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            background.setAttribute('width', '1024');
+            background.setAttribute('height', '1024');
+            background.setAttribute('fill', 'white');
+            wrapper.appendChild(background);
 
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            img.src = URL.createObjectURL(svgBlob);
+            // Clone the QR code SVG and scale it
+            const qrCode = svg.cloneNode(true);
+            qrCode.setAttribute('width', '800');
+            qrCode.setAttribute('height', '800');
+            qrCode.setAttribute('x', '112'); // Center horizontally: (1024 - 800) / 2
+            qrCode.setAttribute('y', '112'); // Center vertically: (1024 - 800) / 2
+
+            wrapper.appendChild(qrCode);
+
+            // Convert to a data URL
+            const svgData = new XMLSerializer().serializeToString(wrapper);
+            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+
+            // Create download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = svgDataUrl;
+            downloadLink.download = `${nftData.name}_${displayId}_QRCode.svg`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            setDownloadError(null);
         } catch (error) {
             console.error('Error downloading QR code:', error);
+            setDownloadError('Failed to download QR code');
         }
     };
 

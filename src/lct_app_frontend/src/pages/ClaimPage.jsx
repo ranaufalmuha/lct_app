@@ -178,15 +178,15 @@ export const ClaimPage = () => {
     }
 
     return (
-        <main className='flex justify-center'>
+        <main className='flex flex-col items-center gap-5 mt-5'>
             {/* header  */}
-            <nav className='container mb-5'>
+            <nav className='container '>
                 <div className="flex items-center justify-between">
                     <div className="w-40 max-sm:w-4"></div>
-                    <div className="flex justify-center items-center">
-                        <img src="./images/logo-full-black.png" className='w-7 invert' alt="" />
+                    <a href='/' className="flex justify-center items-center">
+                        <img src="./images/logo-full-black.png" className='w-7' alt="" />
                         <p className='text-center'>Lost Club Toys</p>
-                    </div>
+                    </a>
                     <div className="flex gap-2 items-center">
                         <button onClick={copyToClipboard} className='w-36 text-disabled hover:text-white  relative line-clamp-1 text-sm max-sm:hidden py-1 px-1  border border-disabled hover:border-white rounded-md duration-300 leading-6'>{principal}</button>
                         <button onClick={handleLogout}><img src="./assets/logout.png" alt="" className='w-4 aspect-square' /></button>

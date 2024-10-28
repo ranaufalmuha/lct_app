@@ -9,7 +9,6 @@ export const NFTComponentAdmin = ({ NFTId }) => {
         const fetchNftData = async () => {
             try {
                 const response = await lct_app_backend.icrc7_token_metadata([NFTId]);
-                console.log('NFT Metadata response:', response);
 
                 if (response?.[0]?.[0]) {
                     const metadataObj = {};
