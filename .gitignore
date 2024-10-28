@@ -20,6 +20,7 @@ target/
 node_modules/
 dist/
 .svelte-kit/
+src/lct_app_frontend/node_modules
 
 # environment variables
 .env
