@@ -7,7 +7,6 @@ import Nat "mo:base/Nat";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
 import Result "mo:base/Result";
-import TrieSet "mo:base/TrieSet";
 
 import CertTree "mo:cert/CertTree";
 
@@ -183,9 +182,9 @@ shared (_init_msg) actor class LCT(
     return icrc37_state_current;
   };
 
-  private func get_icrc3_state() : ICRC3.CurrentState {
-    return icrc3_state_current;
-  };
+  // private func get_icrc3_state() : ICRC3.CurrentState {
+  //   return icrc3_state_current;
+  // };
 
   stable let cert_store : CertTree.Store = CertTree.newStore();
   let ct = CertTree.Ops(cert_store);
@@ -195,7 +194,7 @@ shared (_init_msg) actor class LCT(
     return cert_store;
   };
 
-  private func updated_certification(cert : Blob, lastIndex : Nat) : Bool {
+  private func updated_certification(_cert : Blob, _lastIndex : Nat) : Bool {
 
     D.print("updating the certification " # debug_show (CertifiedData.getCertificate(), ct.treeHash()));
     ct.setCertifiedData();
@@ -540,16 +539,16 @@ shared (_init_msg) actor class LCT(
   };
 
   private stable var _init = false;
-  public shared (msg) func init() : async () {
+  public shared (_msg) func init() : async () {
     //can only be called once
 
     //Warning:  This is a test scenario and should not be used in production.  This creates an approval for the owner of the canister and this can be garbage collected if the max_approvals is hit.  We advise minting with the target owner in the metadata or creating an assign function (see assign)
     if (_init == false) {
       //approve the deployer as a spender on all tokens...
       let current_val = icrc37().get_state().ledger_info.collection_approval_requires_token;
-      let update = icrc37().update_ledger_info([#CollectionApprovalRequiresToken(false)]);
+      let _update = icrc37().update_ledger_info([#CollectionApprovalRequiresToken(false)]);
       let result = icrc37().approve_collection<system>(Principal.fromActor(this), [{ approval_info = { from_subaccount = null; spender = { owner = icrc7().get_state().owner; subaccount = null }; memo = null; expires_at = null; created_at_time = null } }]);
-      let update2 = icrc37().update_ledger_info([#CollectionApprovalRequiresToken(current_val)]);
+      let _update2 = icrc37().update_ledger_info([#CollectionApprovalRequiresToken(current_val)]);
 
       D.print(
         "initialized" # debug_show (
@@ -568,7 +567,7 @@ shared (_init_msg) actor class LCT(
   };
 
   //this lets an admin assign a token to an account
-  public shared (msg) func assign(token_id : Nat, account : Account) : async Nat {
+  public shared (_msg) func assign(token_id : Nat, account : Account) : async Nat {
     // if (msg.caller != icrc7().get_state().owner) D.trap("Unauthorized");
 
     switch (icrc7().transfer<system>(Principal.fromActor(this), [{ from_subaccount = null; to = account; token_id = token_id; memo = null; created_at_time = null }])[0]) {
