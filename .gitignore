@@ -20,7 +20,8 @@ target/
 node_modules/
 dist/
 .svelte-kit/
-src/lct_app_frontend/public/videos
+src/lct_app_frontend/public/
+
 
 # environment variables
 .env
