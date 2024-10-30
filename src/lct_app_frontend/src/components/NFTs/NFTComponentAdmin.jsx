@@ -53,7 +53,7 @@ export const NFTComponentAdmin = ({ NFTId }) => {
                 <div className="w-full aspect-square rounded-2xl max-md:rounded-xl overflow-hidden">
                     <img
                         src={nftImage}
-                        className='w-52 aspect-square bg-black/10'
+                        className='w-52 aspect-square bg-black/10 object-cover'
                         alt={NFTName}
                         onError={() => setNftImage("./images/loadingImg.png")}
                     />

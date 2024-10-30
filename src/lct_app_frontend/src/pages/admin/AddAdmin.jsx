@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthContext';
 import { Principal } from '@dfinity/principal';
-import { lct_app_backend } from 'declarations/lct_app_backend';
 
 export const AddAdmin = () => {
     const { authenticatedActor } = useAuth();
@@ -17,7 +16,7 @@ export const AddAdmin = () => {
 
     const fetchAdmins = async () => {
         try {
-            const controllers = await lct_app_backend.listControllers();
+            const controllers = await authenticatedActor.listControllers();
             setAdmins(controllers);
         } catch (err) {
             setError('Failed to fetch admins');
@@ -33,7 +32,7 @@ export const AddAdmin = () => {
 
         try {
             const principalId = Principal.fromText(newAdminId);
-            await lct_app_backend.addController(principalId);
+            await authenticatedActor.addController(principalId);
             setSuccess('Admin added successfully');
             setNewAdminId('');
             fetchAdmins();
@@ -51,7 +50,7 @@ export const AddAdmin = () => {
         setIsLoading(true);
 
         try {
-            await lct_app_backend.removeController(principalId);
+            await authenticatedActor.removeController(principalId);
             setSuccess('Admin removed successfully');
             fetchAdmins();
         } catch (err) {

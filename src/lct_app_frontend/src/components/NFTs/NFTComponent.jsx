@@ -111,7 +111,7 @@ export const NFTComponent = ({ NFTId, onTransferSuccess }) => {
                 <div className="w-full aspect-square rounded-2xl max-md:rounded-xl overflow-hidden">
                     <img
                         src={nftData.imageUri}
-                        className='w-full aspect-square bg-black/10'
+                        className='w-full aspect-square bg-black/10 object-cover'
                         alt=""
                         onError={(e) => {
                             e.target.src = './images/loadingImg.png';
@@ -135,7 +135,7 @@ export const NFTComponent = ({ NFTId, onTransferSuccess }) => {
                     <div className="bg-white rounded-3xl shadow-lg z-10 overflow-hidden max-md:w-full md:w-3/4 max-w-[1000px] mx-5 p-3 max-h-5/6 relative">
                         <div className="flex max-lg:flex-col overflow-auto">
                             <button onClick={closeModalNFT} className="px-4 py-2 hover:text-gray-300 absolute right-4 top-4">X</button>
-                            <img src={nftData.imageUri} className='w-1/2 max-lg:w-full aspect-square object-cover bg-black/10 rounded-2xl' alt="" />
+                            <img src={nftData.imageUri} className='w-1/2 max-lg:w-full aspect-square object-cover bg-black/10 rounded-2xl object-cover' alt="" />
                             <div className="w-1/2 max-lg:w-full p-5 flex flex-col gap-5">
                                 <div className="flex flex-col gap-1">
                                     <p>#{displayId}</p>

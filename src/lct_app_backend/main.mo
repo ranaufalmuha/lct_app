@@ -7,6 +7,12 @@ import Nat "mo:base/Nat";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
 import Result "mo:base/Result";
+import Nat64 "mo:base/Nat64";
+import Blob "mo:base/Blob";
+import IcpLedger "canister:icp_ledger_canister";
+import Error "mo:base/Error";
+import Debug "mo:base/Debug";
+import Types "types";
 
 import CertTree "mo:cert/CertTree";
 
@@ -644,4 +650,103 @@ shared (_init_msg) actor class LCT(
     };
   };
 
+  // =================================================================================================================================================================================================
+  let ICP_FEE : Nat64 = 10_000;
+
+  let ledger : actor {
+    transfer : shared (
+      args : {
+        memo : Nat64;
+        amount : { e8s : Nat64 };
+        fee : { e8s : Nat64 };
+        from_subaccount : ?[Nat8];
+        to : [Nat8];
+        created_at_time : ?{ timestamp_nanos : Nat64 };
+      }
+    ) -> async {
+      #Ok : Nat64;
+      #Err : {
+        #InsufficientFunds : { balance : { e8s : Nat64 } };
+        #TxTooOld : { allowed_window_nanos : Nat64 };
+        #TxCreatedInFuture;
+        #TxDuplicate : { duplicate_of : Nat64 };
+      };
+    };
+    account_balance : shared query { account : [Nat8] } -> async { e8s : Nat64 };
+    transfer_from : shared (
+      args : {
+        spender_subaccount : ?[Nat8];
+        from : { owner : Principal; subaccount : ?[Nat8] };
+        to : { owner : Principal; subaccount : ?[Nat8] };
+        amount : { e8s : Nat64 };
+        fee : { e8s : Nat64 };
+        memo : ?[Nat8];
+        created_at_time : ?{ timestamp_nanos : Nat64 };
+      }
+    ) -> async {
+      #Ok : Nat64;
+      #Err : {
+        #InsufficientFunds : { balance : { e8s : Nat64 } };
+        #TxTooOld : { allowed_window_nanos : Nat64 };
+        #TxCreatedInFuture;
+        #TxDuplicate : { duplicate_of : Nat64 };
+      };
+    };
+  } = actor ("ryjl3-tyaaa-aaaaa-aaaba-cai");
+
+  // Get ICP balance
+  public shared func getICPBalance(principal : Principal) : async Result.Result<Nat64, Text> {
+    try {
+      let accountId = Principal.toLedgerAccount(principal, null);
+      let balance = await ledger.account_balance({
+        account = Blob.toArray(accountId);
+      });
+      #ok(balance.e8s);
+    } catch (err) {
+      #err("Failed to get balance: " # Error.message(err));
+    };
+  };
+
+  // Transfer ICP from user's balance
+  public shared (msg) func transfer_icp(to : Principal, amount : Nat64) : async Result.Result<Nat64, Text> {
+    if (amount < ICP_FEE) {
+      return #err("Amount must be greater than fee: " # debug_show (ICP_FEE));
+    };
+
+    try {
+      let transferResult = await ledger.transfer_from({
+        spender_subaccount = null;
+        from = {
+          owner = msg.caller;
+          subaccount = null;
+        };
+        to = {
+          owner = to;
+          subaccount = null;
+        };
+        amount = { e8s = amount };
+        fee = { e8s = ICP_FEE };
+        memo = null;
+        created_at_time = null;
+      });
+
+      switch (transferResult) {
+        case (#Ok(blockIndex)) { #ok(blockIndex) };
+        case (#Err(#InsufficientFunds { balance })) {
+          #err("Insufficient funds. Balance: " # debug_show (balance));
+        };
+        case (#Err(#TxTooOld { allowed_window_nanos })) {
+          #err("Transaction too old");
+        };
+        case (#Err(#TxCreatedInFuture)) {
+          #err("Transaction created in future");
+        };
+        case (#Err(#TxDuplicate { duplicate_of })) {
+          #err("Duplicate transaction");
+        };
+      };
+    } catch (error) {
+      #err("Failed to transfer: " # Error.message(error));
+    };
+  };
 };

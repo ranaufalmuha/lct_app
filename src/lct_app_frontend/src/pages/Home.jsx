@@ -2,49 +2,197 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from './../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { NFTComponent } from '../components/NFTs/NFTComponent';
-import { lct_app_backend } from 'declarations/lct_app_backend';
 import { Principal } from '@dfinity/principal';
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { AuthClient } from '@dfinity/auth-client';
+
+const idlFactory = ({ IDL }) => {
+    const Account = IDL.Record({
+        'owner': IDL.Principal,
+        'subaccount': IDL.Opt(IDL.Vec(IDL.Nat8))
+    });
+
+    const TransferArgs = IDL.Record({
+        'to': Account,
+        'fee': IDL.Opt(IDL.Nat),
+        'memo': IDL.Opt(IDL.Vec(IDL.Nat8)),
+        'from_subaccount': IDL.Opt(IDL.Vec(IDL.Nat8)),
+        'created_at_time': IDL.Opt(IDL.Nat64),
+        'amount': IDL.Nat
+    });
+
+    const TransferError = IDL.Variant({
+        'GenericError': IDL.Record({ 'message': IDL.Text, 'error_code': IDL.Nat }),
+        'TemporarilyUnavailable': IDL.Null,
+        'BadBurn': IDL.Record({ 'min_burn_amount': IDL.Nat }),
+        'Duplicate': IDL.Record({ 'duplicate_of': IDL.Nat }),
+        'BadFee': IDL.Record({ 'expected_fee': IDL.Nat }),
+        'CreatedInFuture': IDL.Record({ 'ledger_time': IDL.Nat64 }),
+        'TooOld': IDL.Null,
+        'InsufficientFunds': IDL.Record({ 'balance': IDL.Nat })
+    });
+
+    return IDL.Service({
+        'icrc1_balance_of': IDL.Func([Account], [IDL.Nat], ['query']),
+        'icrc1_transfer': IDL.Func([TransferArgs], [IDL.Variant({ 'Ok': IDL.Nat, 'Err': TransferError })], [])
+    });
+};
 
 function Home() {
-    const { principal, logout } = useAuth();
+    const { authenticatedActor, principal, logout } = useAuth();
     const [totalSupply, setTotalSupply] = useState(0);
     const navigate = useNavigate();
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState({ title: '', message: '' });
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSendModalOpen, setIsSendModalOpen] = useState(false);
     const [nftData, setNftData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [copyStatus, setCopyStatus] = useState('idle');
+
+    // states for ICP Token
+    const [icpBalance, setIcpBalance] = useState(0);
+    const [recipientPrincipal, setRecipientPrincipal] = useState('');
+    const [amount, setAmount] = useState('');
+    const [isLoadingToken, setIsLoadingToken] = useState(true);
+    const [isTransferring, setIsTransferring] = useState(false);
+    const [showAlertToken, setShowAlertToken] = useState(false);
+    const [alertMessageToken, setAlertMessageToken] = useState({ type: '', message: '' });
+
+    // Create ledger actor
+    const createLedgerActor = async () => {
+        try {
+            const authClient = await AuthClient.create();
+            const identity = authClient.getIdentity();
+
+            const agent = new HttpAgent({
+                identity,
+                host: "https://icp-api.io" // Changed from ic0.app to icp-api.io
+            });
+
+            // Create actor with the correct IDL factory
+            return Actor.createActor(idlFactory, {
+                agent,
+                canisterId: 'ryjl3-tyaaa-aaaaa-aaaba-cai'
+            });
+        } catch (error) {
+            console.error("Error creating ledger actor:", error);
+            throw error;
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
         navigate('/');
     };
 
+    // Fetch balance
+    const fetchBalance = async () => {
+        if (!principal) return;
+
+        try {
+            setIsLoadingToken(true);
+            const ledgerActor = await createLedgerActor();
+            const balance = await ledgerActor.icrc1_balance_of({
+                owner: Principal.fromText(principal),
+                subaccount: []
+            });
+            setIcpBalance(Number(balance) / 100_000_000);
+        } catch (error) {
+            console.error("Error fetching balance:", error);
+            showNotificationToken('error', 'Failed to fetch balance');
+        } finally {
+            setIsLoadingToken(false);
+        }
+    };
+
+    // Handle transfer
+    const handleTransfer = async (e) => {
+        e.preventDefault();
+
+        if (!recipientPrincipal || !amount) {
+            showNotificationToken('error', 'Please fill in all fields');
+            return;
+        }
+
+        try {
+            setIsTransferring(true);
+            const ledgerActor = await createLedgerActor();
+
+            let recipient;
+            try {
+                recipient = Principal.fromText(recipientPrincipal);
+            } catch (e) {
+                throw new Error('Invalid recipient principal');
+            }
+
+            const amountE8s = BigInt(Math.floor(parseFloat(amount) * 100_000_000));
+            const fee = 10_000n;
+
+            const result = await ledgerActor.icrc1_transfer({
+                to: {
+                    owner: recipient,
+                    subaccount: []
+                },
+                fee: [fee],
+                memo: [],
+                from_subaccount: [],
+                created_at_time: [],
+                amount: amountE8s
+            });
+
+            if ('Ok' in result) {
+                showNotificationToken('success', `Successfully transferred ${amount} ICP`);
+                setRecipientPrincipal('');
+                setAmount('');
+                fetchBalance();
+            } else {
+                throw new Error(JSON.stringify(result.Err));
+            }
+        } catch (error) {
+            console.error('Transfer error:', error);
+            showNotificationToken('error', error.message);
+        } finally {
+            setIsTransferring(false);
+        }
+    };
+
+    const showNotificationToken = (type, message) => {
+        setAlertMessageToken({ type, message });
+        setShowAlertToken(true);
+        setTimeout(() => setShowAlertToken(false), 3000);
+    };
+
+    // Fetch user's balance
     const fetchNftData = useCallback(async () => {
         try {
             setIsLoading(true);
-            const owner = {
+
+            // Fetch NFT data
+            const tokens = await authenticatedActor.icrc7_tokens_of({
                 owner: Principal.fromText(principal),
                 subaccount: []
-            };
-            const start = [];
-            const length = [];
-
-            const tokens = await lct_app_backend.icrc7_tokens_of(owner, start, length);
+            }, [], []);
             setNftData(tokens);
             setTotalSupply(tokens.length);
-            console.log("Fetched tokens:", tokens);
         } catch (error) {
-            console.error("Error fetching NFTs: ", error);
+            console.error("Error fetching data: ", error);
         } finally {
             setIsLoading(false);
         }
-    }, [principal]);
+    }, [principal, authenticatedActor]);
+
+
 
     useEffect(() => {
-        fetchNftData();
-    }, [fetchNftData]);
+        if (principal) {
+            fetchNftData();
+            fetchBalance();
+            const interval = setInterval(fetchBalance, 10000);
+            return () => clearInterval(interval);
+        }
+
+    }, [principal]);
 
     const copyToClipboard = async () => {
         if (!principal) return;
@@ -102,21 +250,22 @@ function Home() {
         }
     };
 
-    function openModal() {
-        setIsModalOpen(true);
-    }
-
-    function closeModal() {
-        setIsModalOpen(false);
-    }
+    const formatBalance = (balance) => {
+        if (balance <= 0) return "0.0";
+        const [int, dec] = balance.toString().split('.');
+        if (!dec) return int;
+        const trimmedDec = dec.slice(0, 6).replace(/0+$/, '');
+        return trimmedDec ? `${int}.${trimmedDec}` : int;
+    };
 
     return (
         <main className='duration-300'>
             {/* Main content */}
-            <section className='h-[45vh] min-h-[400px] bg-gradient-to-b from-black via-black to-gray-800 text-white p-6 flex flex-col'>
+            <section className='h-[45vh] min-h-[400px] bg-black/85 text-white p-6 flex flex-col relative'>
+                <img src="./images/LostClubToys.jpg" className='absolute left-0 top-0 -z-10 h-full w-full object-cover grayscale' alt="" />
                 {/* header  */}
                 <div className="flex items-center justify-between">
-                    <div className="w-40 max-sm:w-4"></div>
+                    <div className="w-40 max-sm:w-4 "></div>
                     <a href='/' className="flex justify-center items-center">
                         <img src="./images/logo-full-black.png" className='w-7 invert' alt="" />
                         <p className='text-center'>Lost Club Toys</p>
@@ -138,20 +287,43 @@ function Home() {
 
                 {/* Mid Content  */}
                 <div className="flex flex-col gap-8 items-center justify-center w-full h-full">
-                    <div className='flex flex-col items-center gap-1'>
-                        <p className='text-8xl'>{totalSupply}</p>
-                        <p>NFTs</p>
+                    <div className='flex flex-col items-center gap-2 '>
+                        <div className="flex items-center gap-3">
+                            <img src="./images/icp_logo.png" className='max-sm:h-12 h-14 object-contain p-3 bg-white max-sm:rounded-lg rounded-xl duration-300' alt="" />
+                            {isLoadingToken ? (
+                                <div className="animate-pulse">
+                                    <div className="max-sm:h-10 h-12 bg-disabled rounded w-full"></div>
+                                </div>
+                            ) : (
+                                <p className='max-sm:text-4xl text-5xl duration-300'>{formatBalance(icpBalance)}</p>
+                            )}
+                            {/* <p className='text-8xl'>{totalSupply}</p> */}
+                        </div>
+                        <p className='text-disabled max-sm:text-sm duration-300'>Available Balance</p>
+                        {/* <p>NFTs</p> */}
                     </div>
                 </div>
 
                 {/* Button Received */}
-                <div className="flex justify-center">
-                    <button
-                        className="text-disabled hover:text-white leading-6 py-1 px-5 border border-disabled hover:border-white rounded-md duration-300"
-                        onClick={openModal}
-                    >
-                        + Received
-                    </button>
+                <div className="flex justify-center gap-5">
+                    <div className="flex flex-col items-center gap-2">
+                        <button
+                            className="text-disabled border border-disabled rounded-lg duration-300 hover:scale-110"
+                            onClick={() => setIsModalOpen(true)}
+                        >
+                            <img src="./assets/add.png" className='aspect-square p-3 w-12' alt="" />
+                        </button>
+                        <p className='text-disabled text-sm'>Received</p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <button
+                            className="text-disabled border border-disabled rounded-lg duration-300 hover:scale-110"
+                            onClick={() => setIsSendModalOpen(true)}
+                        >
+                            <img src="./assets/send.png" className='aspect-square p-3 w-12' alt="" />
+                        </button>
+                        <p className='text-disabled text-sm'>Send</p>
+                    </div>
                 </div>
             </section>
 
@@ -181,7 +353,7 @@ function Home() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center duration-300 transition-opacity">
-                    <div className="fixed inset-0 bg-black opacity-50 transition-opacity" onClick={closeModal}></div>
+                    <div className="fixed inset-0 bg-black opacity-50 transition-opacity" onClick={() => setIsModalOpen(false)}></div>
                     <div className="bg-white p-6 m-6 rounded-lg shadow-lg z-10 transition-opacity">
                         <p className="text-xl font-bold mb-4">Principal ID</p>
                         <div className="flex flex-col">
@@ -195,13 +367,72 @@ function Home() {
                                 <p>{principal}</p>
                             </button>
                             <button
-                                onClick={closeModal}
+                                onClick={() => setIsModalOpen(false)}
                                 className="mt-4 px-4 py-2 bg-gradient-to-b from-black via-black to-gray-800 text-white rounded hover:bg-gradient-to-r duration-300"
                             >
                                 Close
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Send ICP Modal */}
+            {isSendModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="fixed inset-0 bg-black opacity-50" onClick={() => setIsSendModalOpen(false)}></div>
+                    <div className="bg-white p-6 m-6 rounded-lg shadow-lg z-10 w-96">
+                        <h2 className="text-xl font-bold mb-4">Send ICP</h2>
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Recipient Principal</label>
+                                <input
+                                    type="text"
+                                    value={recipientPrincipal}
+                                    onChange={(e) => setRecipientPrincipal(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm p-3"
+                                    placeholder="Enter recipient principal ID"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Amount (ICP)</label>
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm p-3"
+                                    placeholder="0.00"
+                                    step="0.00000001"
+                                    min="0"
+                                />
+                            </div>
+                            <div className="text-sm text-gray-500">
+                                Fee: 0.0001 ICP
+                            </div>
+                            <button
+                                onClick={handleTransfer}
+                                disabled={isTransferring}
+                                className={`w-full px-4 py-2 bg-gradient-to-b from-black via-black to-gray-800 text-white rounded hover:bg-gradient-to-r duration-300 ${isTransferring ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                            >
+                                {isTransferring ? 'Sending...' : 'Send ICP'}
+                            </button>
+                            <button
+                                onClick={() => setIsSendModalOpen(false)}
+                                className="w-full mt-2 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Alert */}
+            {showAlertToken && (
+                <div className={`fixed bottom-4 right-4 p-4 rounded-md shadow-lg ${alertMessageToken.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                    }`}>
+                    <p className="text-sm font-medium">{alertMessageToken.message}</p>
                 </div>
             )}
 

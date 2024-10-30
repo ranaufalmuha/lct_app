@@ -30,11 +30,11 @@ export default function ICRC7MintForm() {
         if (!file) return;
 
         // File size check (e.g., 5MB limit)
-        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        const maxSize = 2 * 1024 * 1024; // 5MB in bytes
         if (file.size > maxSize) {
             setStatus({
                 loading: false,
-                error: 'File size too large. Please upload an image smaller than 5MB.',
+                error: 'File size too large. Please upload an image smaller than 2MB.',
                 success: false
             });
             return;
