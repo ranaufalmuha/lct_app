@@ -78,19 +78,21 @@ function LandingPage() {
         <main className='duration-300'>
 
             <div className="absolute inset-0 -z-20">
-                <video
-                    autoPlay // Changed from autoplay to autoPlay (React JSX naming)
-                    muted
-                    loop
-                    playsInline // Added for better mobile support
-                    className="w-full h-full object-cover"
-                >
-                    <source
-                        src="./videos/lost_club_toys.mp4"
-                        type="video/mp4"
-                    />
-                    Your browser does not support HTML5 video.
-                </video>
+                <div className="w-full h-full">
+                    <video
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full absolute top-0 right-0 object-cover max-lg:object-[90%_50%] max-md:object-[80%_50%] duration-300"
+                    >
+                        <source
+                            src="./videos/lost_club_toys.mp4"
+                            type="video/mp4"
+                        />
+                        Your browser does not support HTML5 video.
+                    </video>
+                </div>
             </div>
 
             <section className='h-dvh text-white p-8 md:p-12 flex flex-col relative overflow-hidden'>
@@ -110,7 +112,7 @@ function LandingPage() {
                             className='px-9 py-4 rounded-xl bg-white text-black flex justify-center items-center gap-1 hover:scale-105 duration-300'
                             onClick={handleLogin}
                         >
-                            <p>Authenticate</p>
+                            <p>Sign In</p>
                             <img src="./images/logo-full-black.png" className='w-6' alt="" />
                         </button>
                     </div>

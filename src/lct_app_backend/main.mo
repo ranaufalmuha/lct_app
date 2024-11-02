@@ -9,9 +9,12 @@ import CertifiedData "mo:base/CertifiedData";
 import Result "mo:base/Result";
 import Nat64 "mo:base/Nat64";
 import Blob "mo:base/Blob";
-import IcpLedger "canister:icp_ledger_canister";
 import Error "mo:base/Error";
 import Debug "mo:base/Debug";
+import HashMap "mo:base/HashMap";
+import Hash "mo:base/Hash";
+import Iter "mo:base/Iter";
+import Option "mo:base/Option";
 import Types "types";
 
 import CertTree "mo:cert/CertTree";
@@ -651,6 +654,426 @@ shared (_init_msg) actor class LCT(
   };
 
   // =================================================================================================================================================================================================
+
+  // Add NFT type definitions
+  public type NFTInfo = {
+    tokenId : Nat;
+    nftType : Text; // "normal" or "fractional"
+    owner : ?Account;
+    shareholders : ?[ShareHolder];
+    metadata : ?[(Text, Value)];
+  };
+
+  private type ShareHolder = {
+    owner : Account;
+    shares : Nat;
+  };
+
+  private type FractionalNFTData = {
+    tokenId : Nat;
+    shareholders : [ShareHolder];
+    totalShares : Nat;
+  };
+
+  // Store fractional ownership data
+  private var fractionalNFTs = HashMap.HashMap<Nat, FractionalNFTData>(0, Nat.equal, Hash.hash);
+
+  // Query Functions
+
+  // Get NFT type and details
+  public query func getNFTType(tokenId : Nat) : async {
+    nftType : Text;
+    owner : ?Account;
+    shareholders : ?[ShareHolder];
+  } {
+    switch (fractionalNFTs.get(tokenId)) {
+      case (?fractionalData) {
+        {
+          nftType = "fractional";
+          owner = null;
+          shareholders = ?fractionalData.shareholders;
+        };
+      };
+      case (null) {
+        switch (icrc7().get_token_owners([tokenId])) {
+          case (#ok(owners)) {
+            {
+              nftType = "normal";
+              owner = owners[0];
+              shareholders = null;
+            };
+          };
+          case (#err(_)) {
+            {
+              nftType = "not_found";
+              owner = null;
+              shareholders = null;
+            };
+          };
+        };
+      };
+    };
+  };
+
+  // Check if NFT can be made fractional
+  public query func canMakeFractional(tokenId : Nat) : async Bool {
+    switch (icrc7().get_token_owners([tokenId])) {
+      case (#ok(owners)) {
+        switch (owners[0]) {
+          case (?owner) {
+            Principal.equal(owner.owner, Principal.fromActor(this));
+          };
+          case (null) { false };
+        };
+      };
+      case (#err(_)) { false };
+    };
+  };
+
+  // Get all NFTs with pagination
+  public query func getAllNFTs(start : ?Nat, limit : ?Nat) : async {
+    total : Nat;
+    items : [NFTInfo];
+  } {
+    let tokens = icrc7().get_tokens_paginated(start, limit);
+    let results = Buffer.Buffer<NFTInfo>(tokens.size());
+
+    for (tokenId in tokens.vals()) {
+      let metadata = icrc7().token_metadata([tokenId])[0];
+
+      switch (fractionalNFTs.get(tokenId)) {
+        case (?fractionalData) {
+          results.add({
+            tokenId = tokenId;
+            nftType = "fractional";
+            owner = null;
+            shareholders = ?fractionalData.shareholders;
+            metadata = metadata;
+          });
+        };
+        case (null) {
+          let ownerResult = icrc7().get_token_owners([tokenId]);
+          switch (ownerResult) {
+            case (#ok(owners)) {
+              results.add({
+                tokenId = tokenId;
+                nftType = "normal";
+                owner = owners[0];
+                shareholders = null;
+                metadata = metadata;
+              });
+            };
+            case (#err(_)) {};
+          };
+        };
+      };
+    };
+
+    {
+      total = icrc7().get_stats().nft_count;
+      items = Buffer.toArray(results);
+    };
+  };
+
+  // Get all fractional NFTs
+  public query func getAllFractionalNFTs() : async [NFTInfo] {
+    let results = Buffer.Buffer<NFTInfo>(0);
+
+    let entries = Iter.toArray(fractionalNFTs.entries());
+    for ((tokenId, fractionalData) in entries.vals()) {
+      let metadata = icrc7().token_metadata([tokenId])[0];
+      results.add({
+        tokenId = tokenId;
+        nftType = "fractional";
+        owner = null;
+        shareholders = ?fractionalData.shareholders;
+        metadata = metadata;
+      });
+    };
+
+    Buffer.toArray(results);
+  };
+
+  // Get all normal NFTs with pagination
+  public query func getAllNormalNFTs(start : ?Nat, limit : ?Nat) : async [NFTInfo] {
+    let tokens = icrc7().get_tokens_paginated(start, limit);
+    let results = Buffer.Buffer<NFTInfo>(tokens.size());
+
+    for (tokenId in tokens.vals()) {
+      switch (fractionalNFTs.get(tokenId)) {
+        case (?_) {};
+        case (null) {
+          let metadata = icrc7().token_metadata([tokenId])[0];
+          let ownerResult = icrc7().get_token_owners([tokenId]);
+          switch (ownerResult) {
+            case (#ok(owners)) {
+              results.add({
+                tokenId = tokenId;
+                nftType = "normal";
+                owner = owners[0];
+                shareholders = null;
+                metadata = metadata;
+              });
+            };
+            case (#err(_)) {};
+          };
+        };
+      };
+    };
+
+    Buffer.toArray(results);
+  };
+
+  // Get NFTs owned by an account
+  public query func getAccountNFTs(account : Account) : async {
+    normal : [NFTInfo];
+    fractional : [NFTInfo];
+  } {
+    let normalNFTs = Buffer.Buffer<NFTInfo>(0);
+    let fractionalNFTs_buf = Buffer.Buffer<NFTInfo>(0);
+
+    // Get normal NFTs
+    let tokens = icrc7().get_tokens_of_paginated(account, null, null);
+    for (tokenId in tokens.vals()) {
+      let metadata = icrc7().token_metadata([tokenId])[0];
+      normalNFTs.add({
+        tokenId = tokenId;
+        nftType = "normal";
+        owner = ?account;
+        shareholders = null;
+        metadata = metadata;
+      });
+    };
+
+    // Get fractional NFTs
+    let entries = Iter.toArray(fractionalNFTs.entries());
+    for ((tokenId, data) in entries.vals()) {
+      for (shareholder in data.shareholders.vals()) {
+        if (accountsEqual(shareholder.owner, account)) {
+          let metadata = icrc7().token_metadata([tokenId])[0];
+          fractionalNFTs_buf.add({
+            tokenId = tokenId;
+            nftType = "fractional";
+            owner = null;
+            shareholders = ?data.shareholders;
+            metadata = metadata;
+          });
+        };
+      };
+    };
+
+    {
+      normal = Buffer.toArray(normalNFTs);
+      fractional = Buffer.toArray(fractionalNFTs_buf);
+    };
+  };
+
+  // Get specific NFT details
+  public query func getNFTDetails(tokenId : Nat) : async Result.Result<NFTInfo, Text> {
+    let metadata = icrc7().token_metadata([tokenId])[0];
+
+    switch (metadata) {
+      case (null) { #err("NFT not found") };
+      case (?_) {
+        switch (fractionalNFTs.get(tokenId)) {
+          case (?data) {
+            #ok({
+              tokenId = tokenId;
+              nftType = "fractional";
+              owner = null;
+              shareholders = ?data.shareholders;
+              metadata = metadata;
+            });
+          };
+          case (null) {
+            switch (icrc7().get_token_owners([tokenId])) {
+              case (#ok(owners)) {
+                #ok({
+                  tokenId = tokenId;
+                  nftType = "normal";
+                  owner = owners[0];
+                  shareholders = null;
+                  metadata = metadata;
+                });
+              };
+              case (#err(err)) {
+                #err("Error getting owner: " # debug_show (err));
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  // Get shareholder details
+  public query func getShareholderDetails(tokenId : Nat) : async Result.Result<{ totalShares : Nat; shareholders : [ShareHolder] }, Text> {
+    switch (fractionalNFTs.get(tokenId)) {
+      case (null) { #err("Not a fractional NFT") };
+      case (?data) {
+        #ok({
+          totalShares = data.totalShares;
+          shareholders = data.shareholders;
+        });
+      };
+    };
+  };
+
+  // Make NFT fractional
+  public shared (msg) func makeFractional(
+    tokenId : Nat,
+    owners : [Account],
+    shares : [Nat],
+    totalShares : Nat,
+  ) : async Result.Result<(), Text> {
+    // Check if already fractional
+    switch (fractionalNFTs.get(tokenId)) {
+      case (?_) { return #err("NFT is already fractional") };
+      case (null) {
+        // Check authorization
+        if (not isController(msg.caller)) {
+          return #err("Unauthorized: Only controllers can make NFT fractional");
+        };
+
+        // Verify NFT exists and is owned by canister
+        let ownerResult = switch (icrc7().get_token_owners([tokenId])) {
+          case (#ok(owners)) {
+            if (owners.size() == 0) {
+              return #err("Token does not exist");
+            };
+            owners[0];
+          };
+          case (#err(error)) {
+            return #err("Error checking token ownership: " # debug_show (error));
+          };
+        };
+
+        if (ownerResult != ?{ owner = Principal.fromActor(this); subaccount = null }) {
+          return #err("NFT must be owned by the canister to make it fractional");
+        };
+
+        // Validate shares
+        if (owners.size() != shares.size()) {
+          return #err("Number of owners must match number of shares");
+        };
+
+        var actualTotalShares = 0;
+        for (share in shares.vals()) {
+          actualTotalShares += share;
+        };
+
+        if (actualTotalShares != totalShares) {
+          return #err("Sum of shares must equal total shares: " # Nat.toText(totalShares));
+        };
+
+        // Create shareholders
+        let shareholders = Buffer.Buffer<ShareHolder>(owners.size());
+        for (i in Iter.range(0, owners.size() - 1)) {
+          shareholders.add({
+            owner = owners[i];
+            shares = shares[i];
+          });
+        };
+
+        // Store fractional data
+        fractionalNFTs.put(
+          tokenId,
+          {
+            tokenId = tokenId;
+            shareholders = Buffer.toArray(shareholders);
+            totalShares = totalShares;
+          },
+        );
+
+        #ok();
+      };
+    };
+  };
+
+  // Transfer shares
+  public shared (msg) func transferShares(
+    tokenId : Nat,
+    to : Account,
+    shares : Nat,
+  ) : async Result.Result<(), Text> {
+    switch (fractionalNFTs.get(tokenId)) {
+      case (null) {
+        return #err("Not a fractional NFT");
+      };
+      case (?data) {
+        let shareholders = Buffer.Buffer<ShareHolder>(data.shareholders.size());
+        var senderShares : ?Nat = null;
+
+        for (holder in data.shareholders.vals()) {
+          if (accountsEqual(holder.owner, { owner = msg.caller; subaccount = null })) {
+            senderShares := ?holder.shares;
+          };
+        };
+
+        switch (senderShares) {
+          case (null) {
+            return #err("You don't own any shares");
+          };
+          case (?currentShares) {
+            if (currentShares < shares) {
+              return #err("Insufficient shares");
+            };
+
+            let newShareholders = Buffer.Buffer<ShareHolder>(0);
+            for (holder in data.shareholders.vals()) {
+              if (accountsEqual(holder.owner, { owner = msg.caller; subaccount = null })) {
+                if (holder.shares > shares) {
+                  newShareholders.add({
+                    owner = holder.owner;
+                    shares = holder.shares - shares;
+                  });
+                };
+              } else if (accountsEqual(holder.owner, to)) {
+                newShareholders.add({
+                  owner = holder.owner;
+                  shares = holder.shares + shares;
+                });
+              } else {
+                newShareholders.add(holder);
+              };
+            };
+
+            if (not hasAccount(to, Buffer.toArray(newShareholders))) {
+              newShareholders.add({
+                owner = to;
+                shares = shares;
+              });
+            };
+
+            fractionalNFTs.put(
+              tokenId,
+              {
+                tokenId = data.tokenId;
+                shareholders = Buffer.toArray(newShareholders);
+                totalShares = data.totalShares;
+              },
+            );
+          };
+        };
+        #ok();
+      };
+    };
+  };
+
+  // Helper functions
+  private func hasAccount(account : Account, shareholders : [ShareHolder]) : Bool {
+    for (holder in shareholders.vals()) {
+      if (accountsEqual(holder.owner, account)) return true;
+    };
+    false;
+  };
+
+  private func accountsEqual(a : Account, b : Account) : Bool {
+    Principal.equal(a.owner, b.owner) and Option.equal(a.subaccount, b.subaccount, Blob.equal);
+  };
+
+  // ================================================================================================================================================================================================================================================
+
   let ICP_FEE : Nat64 = 10_000;
 
   let ledger : actor {

@@ -107,7 +107,7 @@ export const NFTComponent = ({ NFTId, onTransferSuccess }) => {
 
     return (
         <div className="">
-            <button className='bg-white shadow-lg shadow-black/20 rounded-2xl max-md:rounded-lg overflow-hidden flex flex-col p-4 gap-4 hover:scale-105 duration-300 cursor-default max-md:gap-3'>
+            <button className='bg-white shadow-lg shadow-black/20 rounded-2xl max-md:rounded-lg overflow-hidden flex flex-col p-4 gap-4 hover:scale-105 duration-300 max-md:gap-3' onClick={openModalNFT}>
                 <div className="w-full aspect-square rounded-2xl max-md:rounded-xl overflow-hidden">
                     <img
                         src={nftData.imageUri}
@@ -122,11 +122,11 @@ export const NFTComponent = ({ NFTId, onTransferSuccess }) => {
                     <p className='w-4/5 text-xl font-bold text-start line-clamp-1 max-md:text-base'>{nftData.name}</p>
                     <p className='max-md:text-sm'>#{displayId}</p>
                 </div>
-                <div className="flex justify-end w-full">
+                {/* <div className="flex justify-end w-full">
                     <button className='border border-disabled p-1 rounded-lg overflow-hidden hover:scale-105 duration-300 max-md:rounded-md' onClick={openModalNFT}>
                         <img src="./assets/send.png" className='w-6 h-6 max-md:w-4 max-md:h-4 object-contain' alt="" />
                     </button>
-                </div>
+                </div> */}
             </button>
 
             {isModalNFTOpen && (

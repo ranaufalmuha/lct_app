@@ -4,6 +4,8 @@ import { useAuth } from './../../components/AuthContext';
 
 export default function ICRC7MintForm() {
     const { authenticatedActor, principal: userPrincipal } = useAuth();
+    const [ownerMode, setOwnerMode] = useState('default');
+    const [customOwner, setCustomOwner] = useState('');
     const [formData, setFormData] = useState({
         tokenId: '',
         owner: 'lymfr-oqaaa-aaaao-qeucq-cai',
@@ -25,49 +27,82 @@ export default function ICRC7MintForm() {
         }));
     };
 
-    const handleImg = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const handleImg = async (e) => {
+        try {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        // File size check (e.g., 5MB limit)
-        const maxSize = 2 * 1024 * 1024; // 5MB in bytes
-        if (file.size > maxSize) {
             setStatus({
-                loading: false,
-                error: 'File size too large. Please upload an image smaller than 2MB.',
+                loading: true,
+                error: null,
                 success: false
             });
-            return;
-        }
 
-        // File type check
-        if (!file.type.startsWith('image/')) {
+            // Check file size - strict 1.5MB limit
+            const maxFileSize = 1.5 * 1024 * 1024; // 1.5MB in bytes
+            if (file.size > maxFileSize) {
+                const currentSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                setStatus({
+                    loading: false,
+                    error: `Maximum file size is 1.5MB. Your file: ${currentSizeMB}MB`,
+                    success: false
+                });
+                // Clear input
+                e.target.value = '';
+                // Clear existing preview if any
+                setFormData(prev => ({
+                    ...prev,
+                    imageUri: ''
+                }));
+                return;
+            }
+
+            // If size is okay, proceed with conversion
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64String = event.target.result;
+                setFormData(prev => ({
+                    ...prev,
+                    imageUri: base64String
+                }));
+
+                setStatus({
+                    loading: false,
+                    error: null,
+                    success: false
+                });
+            };
+
+            reader.onerror = () => {
+                setStatus({
+                    loading: false,
+                    error: 'Error reading file. Please try again.',
+                    success: false
+                });
+                // Clear input and preview
+                e.target.value = '';
+                setFormData(prev => ({
+                    ...prev,
+                    imageUri: ''
+                }));
+            };
+
+            reader.readAsDataURL(file);
+
+        } catch (error) {
+            console.error('Error:', error);
             setStatus({
                 loading: false,
-                error: 'Please upload an image file.',
+                error: 'Error processing file. Please try again.',
                 success: false
             });
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = (event) => {
+            // Clear input and preview
+            e.target.value = '';
             setFormData(prev => ({
                 ...prev,
-                imageUri: event.target.result
+                imageUri: ''
             }));
-        };
-
-        reader.onerror = () => {
-            setStatus({
-                loading: false,
-                error: 'Error reading file.',
-                success: false
-            });
-        };
-
-        reader.readAsDataURL(file);
+        }
     };
 
     const mintNFT = async (e) => {
@@ -117,6 +152,7 @@ export default function ICRC7MintForm() {
                         error: null,
                         success: true
                     });
+                    setOwnerMode('default');
                     setFormData(prev => ({
                         ...prev,
                         tokenId: '',
@@ -187,14 +223,47 @@ export default function ICRC7MintForm() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Owner Principal
                             </label>
-                            <input
-                                type="text"
-                                name="owner"
-                                disabled
-                                value={formData.owner}
-                                onChange={handleInputChange}
-                                className="w-full rounded-md border border-gray-300 p-2 focus:ring-2 focus:ring-black focus:border-transparent text-disabled bg-gray-50"
-                            />
+                            <div className="flex gap-2">
+                                <select
+                                    value={ownerMode}
+                                    onChange={(e) => setOwnerMode(e.target.value)}
+                                    className="rounded-md border border-gray-300 p-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                                >
+                                    <option value="default">Default Owner</option>
+                                    <option value="custom">Custom Owner</option>
+                                </select>
+
+                                {ownerMode === 'custom' ? (
+                                    <input
+                                        type="text"
+                                        value={customOwner}
+                                        onChange={(e) => {
+                                            setCustomOwner(e.target.value);
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                owner: e.target.value
+                                            }));
+                                        }}
+                                        placeholder="Enter custom owner principal"
+                                        className="flex-1 rounded-md border border-gray-300 p-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                                    />
+                                ) : (
+                                    <input
+                                        type="text"
+                                        name="owner"
+                                        disabled
+                                        value={formData.owner}
+                                        onChange={handleInputChange}
+                                        className="flex-1 rounded-md border border-gray-300 p-2 focus:ring-2 focus:ring-black focus:border-transparent text-disabled bg-gray-50"
+                                    />
+                                )}
+                            </div>
+
+                            {ownerMode === 'custom' && (
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Make sure to enter a valid principal ID
+                                </p>
+                            )}
                         </div>
 
                         <div>
