@@ -163,20 +163,30 @@ function Home() {
         setTimeout(() => setShowAlertToken(false), 3000);
     };
 
-    // Fetch user's balance
+    // Update the fetchNftData function
     const fetchNftData = useCallback(async () => {
         try {
             setIsLoading(true);
 
-            // Fetch NFT data
-            const tokens = await authenticatedActor.icrc7_tokens_of({
+            // Use getAccountNFTs to get both normal and fractional NFTs
+            const accountNFTs = await authenticatedActor.getAccountNFTs({
                 owner: Principal.fromText(principal),
                 subaccount: []
-            }, [], []);
-            setNftData(tokens);
-            setTotalSupply(tokens.length);
+            });
+
+            console.log("Account NFTs:", accountNFTs); // Debug log
+
+            // Combine normal and fractional NFTs with metadata
+            const allNFTs = [
+                ...accountNFTs.normal,  // Normal NFTs
+                ...accountNFTs.fractional // Fractional NFTs
+            ];
+
+            setNftData(allNFTs);
+            setTotalSupply(allNFTs.length);
+
         } catch (error) {
-            console.error("Error fetching data: ", error);
+            console.error("Error fetching NFT data:", error);
         } finally {
             setIsLoading(false);
         }
@@ -339,11 +349,13 @@ function Home() {
                     </div>
                 ) : (
                     <div className="container max-sm:p-4 grid grid-cols-4 max-md:grid-cols-2 max-lg:grid-cols-3 gap-4 w-full justify-items-center duration-300">
-                        {nftData.map((tokenId) => (
+                        {nftData.map((nft) => (
                             <NFTComponent
-                                key={tokenId.toString()}
-                                NFTId={tokenId}
+                                key={nft.tokenId.toString()}
+                                NFTId={nft.tokenId}
                                 onTransferSuccess={fetchNftData}
+                                initialNftType={nft.nftType}
+                                initialShareholders={nft.shareholders}
                             />
                         ))}
                     </div>

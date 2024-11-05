@@ -38,7 +38,7 @@ const router = createBrowserRouter([
                 element: (
                     <div>
                         <AdminSidebar />
-                        <ListNft />,
+                        <ListNft />
                     </div>
                 ),
             },

@@ -597,58 +597,68 @@ shared (_init_msg) actor class LCT(
 
     let token_id = token_ids[0];
 
-    // Get caller principal
-    let caller = msg.caller;
-
-    // Return error if caller is anonymous
-    if (Principal.isAnonymous(caller)) {
-      return #err("Anonymous users cannot claim NFTs. Please login first.");
-    };
-
-    // Check if the NFT exists and get current owner
-    let ownerResult = switch (icrc7().get_token_owners(token_ids)) {
-      case (#ok(owners)) {
-        if (owners.size() == 0) {
-          return #err("Token does not exist");
-        };
-        owners[0];
+    // Check if this is a fractional NFT
+    switch (fractionalNFTs.get(token_id)) {
+      case (?_) {
+        // If fractional, use fractional claim function
+        return await claimFractionalNFT(token_ids);
       };
-      case (#err(error)) {
-        return #err("Error checking token ownership: " # debug_show (error));
-      };
-    };
-
-    // Verify the NFT is owned by this canister
-    let canister_principal = Principal.fromActor(this);
-    if (ownerResult != ?{ owner = canister_principal; subaccount = null }) {
-      return #err("NFT is not available for claiming");
-    };
-
-    // Prepare transfer arguments with explicit caller as destination
-    let transferArgs : TransferArgs = {
-      to = {
-        owner = caller; // Using the caller's principal directly
-        subaccount = null;
-      };
-      token_id = token_id;
-      memo = null;
-      from_subaccount = null;
-      created_at_time = null;
-    };
-
-    // Execute transfer
-    let transferResult = icrc7().transfer(canister_principal, [transferArgs]);
-
-    // Handle transfer result
-    switch (transferResult[0]) {
       case (null) {
-        #err("Transfer failed: Unexpected null result");
-      };
-      case (? #Ok(val)) {
-        #ok(val);
-      };
-      case (? #Err(error)) {
-        #err("Transfer failed: " # debug_show (error));
+        // If not fractional, use regular claim function
+        // Get caller principal
+        let caller = msg.caller;
+
+        // Return error if caller is anonymous
+        if (Principal.isAnonymous(caller)) {
+          return #err("Anonymous users cannot claim NFTs. Please login first.");
+        };
+
+        // Check if the NFT exists and get current owner
+        let ownerResult = switch (icrc7().get_token_owners(token_ids)) {
+          case (#ok(owners)) {
+            if (owners.size() == 0) {
+              return #err("Token does not exist");
+            };
+            owners[0];
+          };
+          case (#err(error)) {
+            return #err("Error checking token ownership: " # debug_show (error));
+          };
+        };
+
+        // Verify the NFT is owned by this canister
+        let canister_principal = Principal.fromActor(this);
+        if (ownerResult != ?{ owner = canister_principal; subaccount = null }) {
+          return #err("NFT is not available for claiming");
+        };
+
+        // Prepare transfer arguments
+        let transferArgs : TransferArgs = {
+          to = {
+            owner = caller;
+            subaccount = null;
+          };
+          token_id = token_id;
+          memo = null;
+          from_subaccount = null;
+          created_at_time = null;
+        };
+
+        // Execute transfer
+        let transferResult = icrc7().transfer(canister_principal, [transferArgs]);
+
+        // Handle transfer result
+        switch (transferResult[0]) {
+          case (null) {
+            #err("Transfer failed: Unexpected null result");
+          };
+          case (? #Ok(val)) {
+            #ok(val);
+          };
+          case (? #Err(error)) {
+            #err("Transfer failed: " # debug_show (error));
+          };
+        };
       };
     };
   };
@@ -1070,6 +1080,97 @@ shared (_init_msg) actor class LCT(
 
   private func accountsEqual(a : Account, b : Account) : Bool {
     Principal.equal(a.owner, b.owner) and Option.equal(a.subaccount, b.subaccount, Blob.equal);
+  };
+
+  public shared (msg) func claimFractionalNFT(token_ids : [Nat]) : async Result.Result<Nat, Text> {
+    // Validate input
+    if (token_ids.size() == 0) {
+      return #err("No token ID provided");
+    };
+
+    let tokenId = token_ids[0];
+    let caller = msg.caller;
+
+    // Return error if caller is anonymous
+    if (Principal.isAnonymous(caller)) {
+      return #err("Anonymous users cannot claim NFTs. Please login first.");
+    };
+
+    let CANISTER_PRINCIPAL = Principal.fromActor(this);
+
+    switch (fractionalNFTs.get(tokenId)) {
+      case (null) {
+        return #err("Not a fractional NFT");
+      };
+      case (?data) {
+        let shareholders = Buffer.Buffer<ShareHolder>(data.shareholders.size());
+        var canisterShares : ?Nat = null;
+        var callerShares : ?Nat = null;
+
+        // Check both canister and caller shares
+        for (holder in data.shareholders.vals()) {
+          if (Principal.equal(holder.owner.owner, CANISTER_PRINCIPAL)) {
+            canisterShares := ?holder.shares;
+          };
+          if (accountsEqual(holder.owner, { owner = caller; subaccount = null })) {
+            callerShares := ?holder.shares;
+          };
+        };
+
+        // Check if caller already has shares
+        switch (callerShares) {
+          case (?shares) {
+            return #err("You already own shares of this NFT");
+          };
+          case (null) {
+            // Continue with claim process if caller has no shares
+            switch (canisterShares) {
+              case (null) {
+                return #err("Canister doesn't own any shares");
+              };
+              case (?currentShares) {
+                if (currentShares < 1) {
+                  return #err("Insufficient shares in canister");
+                };
+
+                let newShareholders = Buffer.Buffer<ShareHolder>(0);
+                for (holder in data.shareholders.vals()) {
+                  if (Principal.equal(holder.owner.owner, CANISTER_PRINCIPAL)) {
+                    // Reduce canister shares by 1
+                    if (holder.shares > 1) {
+                      newShareholders.add({
+                        owner = holder.owner;
+                        shares = holder.shares - 1;
+                      });
+                    };
+                  } else {
+                    // Keep other shareholders unchanged
+                    newShareholders.add(holder);
+                  };
+                };
+
+                // Add caller as new shareholder with 1 share
+                newShareholders.add({
+                  owner = { owner = caller; subaccount = null };
+                  shares = 1;
+                });
+
+                // Update fractional NFT data
+                fractionalNFTs.put(
+                  tokenId,
+                  {
+                    tokenId = data.tokenId;
+                    shareholders = Buffer.toArray(newShareholders);
+                    totalShares = data.totalShares;
+                  },
+                );
+              };
+            };
+          };
+        };
+        #ok(tokenId);
+      };
+    };
   };
 
   // ================================================================================================================================================================================================================================================

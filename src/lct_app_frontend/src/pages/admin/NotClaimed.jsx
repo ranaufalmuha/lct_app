@@ -22,9 +22,48 @@ const NotClaimed = () => {
                 const length = [];
 
                 const tokens = await lct_app_backend.icrc7_tokens_of(owner, start, length);
-                setNftData(tokens);
-                setTotalSupply(tokens.length);
                 console.log("Fetched tokens:", tokens);
+
+                // Filter NFTs based on type and ownership
+                const filteredTokens = await Promise.all(
+                    tokens.map(async (tokenId) => {
+                        try {
+                            // Get NFT type
+                            const nftType = await lct_app_backend.getNFTType(tokenId);
+
+                            if (nftType.nftType === 'normal') {
+                                // If it's a normal NFT and owned by backend, include it
+                                return tokenId;
+                            } else if (nftType.nftType === 'fractional') {
+                                // If it's fractional, check shares
+                                const shareholderDetails = await lct_app_backend.getShareholderDetails(tokenId);
+
+                                if ('ok' in shareholderDetails) {
+                                    // Check if backend canister has shares
+                                    const canisterShares = shareholderDetails.ok.shareholders.find(
+                                        sh => sh.owner.owner.toString() === backend_canister_principal
+                                    );
+
+                                    // Only include fractional NFT if canister has shares
+                                    if (canisterShares && Number(canisterShares.shares) > 0) {
+                                        return tokenId;
+                                    }
+                                }
+                            }
+                            return null;
+                        } catch (error) {
+                            console.error(`Error checking NFT ${tokenId}:`, error);
+                            return null;
+                        }
+                    })
+                );
+
+                // Remove null values and set the filtered data
+                const validTokens = filteredTokens.filter(token => token !== null);
+                setNftData(validTokens);
+                setTotalSupply(validTokens.length);
+                console.log("Filtered tokens:", validTokens);
+
             } catch (error) {
                 console.error("Error fetching NFTs: ", error);
             }
@@ -38,7 +77,7 @@ const NotClaimed = () => {
             <section className='flex justify-center mt-7'>
                 {totalSupply <= 0 ? (
                     <div className="flex justify-center w-full text-disabled">
-                        <p>no nft minted</p>
+                        <p>no nft available for claiming</p>
                     </div>
                 ) : (
                     <div className="container max-sm:p-4 grid grid-cols-4 max-md:grid-cols-2 max-lg:grid-cols-3 gap-4 w-full justify-items-center duration-300">
