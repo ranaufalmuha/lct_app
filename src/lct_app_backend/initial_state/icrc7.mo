@@ -5,8 +5,10 @@ module {
     ?{
       symbol = ?"LCT";
       name = ?"Lost Club Toys";
-      description = ?"Dive into the world of the Lost Club Toys. A fluffy collection of 3D cuteness. Made for good vibes and real world surprises!";
-      logo = ?"https://lrpon-yyaaa-aaaao-qeuda-cai.icp0.io/images/FinalLogo.jpeg";
+      description = ?"The Lost Club Toys NFT represents the genesis of an exclusive digital collectible series designed to celebrate the convergence of art, identity and decentralized technology. As the foundational piece in the Lost Club Toys ecosystem, this NFT serves as a symbol of access to a special circle of digital innovation, combining unique visual art with blockchain-driven utility. It’s a testament to the pioneering spirit of its holders, each contributing to a legacy of digital collectibles that bridge the physical and digital realms.";
+
+      logo = ?"https://lrpon-yyaaa-aaaao-qeuda-cai.raw.icp0.io/images/FinalLogo.png";
+      
       supply_cap = null;
       allow_transfers = null;
       max_query_batch_size = ?100;

@@ -45,7 +45,9 @@
   },
   "networks": {
     "ic": {
-      "providers": ["https://icp-api.io"],
+      "providers": [
+        "https://icp-api.io"
+      ],
       "type": "persistent"
     },
     "local": {

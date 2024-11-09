@@ -105,7 +105,7 @@ function LandingPage() {
                 <div className="flex flex-col gap-5 items-start justify-center w-full md:max-w-[500px] h-full duration-300">
                     <p className='text-5xl max-md:w-full max-md:text-center duration-300'>100% On Chain Wallet</p>
                     <p className='text-start max-md:text-center text-xl duration-300'>
-                        Earn cool NFTs! Grab your exclusive LCT NFT at the Token2049 afterparty.
+                        Grab your exclusive LCT x ICP Collaboration POAP for DevCon Bangkok 2024
                     </p>
                     <div className="flex w-full max-md:justify-center duration-300">
                         <button

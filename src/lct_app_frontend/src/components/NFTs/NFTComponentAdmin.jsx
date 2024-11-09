@@ -59,7 +59,7 @@ export const NFTComponentAdmin = ({ NFTId }) => {
                 <div className="w-full aspect-square rounded-2xl max-md:rounded-xl overflow-hidden">
                     <img
                         src={nftData.imageUri}
-                        className='w-52 aspect-square bg-black/10 object-cover'
+                        className='w-full aspect-square bg-black/10 object-cover'
                         alt={nftData.name}
                     />
                 </div>

@@ -291,7 +291,9 @@ export const ClaimPage = () => {
             {/* header  */}
             <nav className='container px-6'>
                 <div className="flex items-center justify-between">
-                    <div className="w-40 max-sm:w-4"></div>
+                    <a href='/' className="w-40 max-sm:w-4">
+                        <img src="./assets/back.png" className='w-4 aspect-square object-contain' alt="" />
+                    </a>
                     <a href='/' className="flex justify-center items-center">
                         <img src="./images/logo-full-black.png" className='w-7' alt="" />
                         <p className='text-center'>Lost Club Toys</p>

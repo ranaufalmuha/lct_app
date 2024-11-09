@@ -3,12 +3,14 @@ import { Principal } from '@dfinity/principal';
 import { useAuth } from './../../components/AuthContext';
 
 export default function ICRC7MintForm() {
+    const islocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "";
+    const backend_canister_principal = islocalhost ? "bkyz2-fmaaa-aaaaa-qaaaq-cai" : process.env.CANISTER_ID_LCT_APP_BACKEND;
     const { authenticatedActor, principal: userPrincipal } = useAuth();
     const [ownerMode, setOwnerMode] = useState('default');
     const [customOwner, setCustomOwner] = useState('');
     const [formData, setFormData] = useState({
         tokenId: '',
-        owner: 'lymfr-oqaaa-aaaao-qeucq-cai',
+        owner: backend_canister_principal,
         imageUri: '',
         name: ''
     });

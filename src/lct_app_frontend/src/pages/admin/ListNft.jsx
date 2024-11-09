@@ -50,7 +50,7 @@ const ListNft = () => {
     return (
         <div className='container'>
             {/* NFTs List  */}
-            <section className='flex justify-center mt-7'>
+            <section className='flex justify-center mt-7 mb-14'>
                 {totalSupply <= 0 ? (
                     <div className="flex justify-center w-full text-disabled">
                         <p>no nft minted</p>

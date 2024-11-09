@@ -74,7 +74,7 @@ const NotClaimed = () => {
 
     return (
         <div className='container'>
-            <section className='flex justify-center mt-7'>
+            <section className='flex justify-center mt-7 mb-14'>
                 {totalSupply <= 0 ? (
                     <div className="flex justify-center w-full text-disabled">
                         <p>no nft available for claiming</p>

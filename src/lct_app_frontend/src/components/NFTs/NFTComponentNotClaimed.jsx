@@ -230,7 +230,7 @@ export const NFTComponentNotClaimed = ({ NFTId, qrcodeLink }) => {
                     }`}
             >
                 <div className="w-full aspect-square rounded-2xl overflow-hidden">
-                    <img src={nftData.imageUri} className='w-52 aspect-square bg-black/10 object-cover' alt="" />
+                    <img src={nftData.imageUri} className='w-full aspect-square bg-black/10 object-cover' alt="" />
                 </div>
                 <div className="w-full flex justify-between items-end">
                     <p className='w-4/5 text-xl font-bold text-start line-clamp-1'>{nftData.name}</p>

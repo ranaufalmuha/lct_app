@@ -5,7 +5,7 @@ import { Principal } from '@dfinity/principal';
 
 const AdminSidebar = () => {
     const [name, setName] = useState("Loading...");
-    const [logo, setLogo] = useState("./images/FinalLogo.jpeg");
+    const [logo, setLogo] = useState("./images/FinalLogo.png");
     const [description, setDescription] = useState("Loading...");
     const [totalSupply, setTotalSuppy] = useState(0);
     const [symbol, setSymbol] = useState("Loading...");
@@ -63,13 +63,13 @@ const AdminSidebar = () => {
             {/* header */}
             <section className='flex justify-center mt-5 mx-6'>
                 <div className="container max-sm:p-4 gap-4 w-full flex flex-col">
-                    <div className="flex gap-4 items-center">
-                        <div className='bg-white shadow-lg shadow-black/20 aspect-square rounded-lg overflow-hidden text-white max-sm:w-52 w-32 flex'>
-                            <img src={logo} className=' w-full' alt="" />
+                    <div className="flex flex-col gap-4 items-start">
+                        <div className='bg-white shadow-lg shadow-black/20 aspect-square rounded-lg overflow-hidden text-white w-32 flex p-2'>
+                            <img src={logo} className='w-full' alt="" />
                         </div>
                         <div className="flex flex-col gap-1">
                             <p className='text-xl max-sm:text-lg'>{name}</p>
-                            <p className='text-disabled max-sm:text-xs text-sm max-sm:w-full w-3/4'>{description}</p>
+                            <p className='text-disabled max-sm:text-xs text-sm max-sm:w-full max-sm:line-clamp-3'>{description}</p>
                         </div>
                     </div>
                     <hr />

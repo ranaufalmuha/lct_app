@@ -30,7 +30,7 @@ function Sidebar() {
                 <div>
                     {isAdmin ? (
                         <div>
-                            <div className="pointer-events-none w-[100vw] h-[100vh] flex flex-col justify-center gap-4 px-7 z-10 fixed">
+                            <div className="pointer-events-none w-[100vw] h-[100vh] flex md:flex-col max-md:items-end justify-center gap-4 p-7 z-10 fixed duration-300">
                                 <a href='/admin/mintnft' className="w-14 aspect-square bg-white backdrop-blur- flex justify-center items-center pointer-events-auto rounded-lg shadow-lg shadow-black/20 p-4 hover:scale-105 duration-300">
                                     <img src="./assets/add.png" className='aspect-square' alt="" />
                                 </a>

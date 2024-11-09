@@ -533,6 +533,12 @@ shared (_init_msg) actor class LCT(
     if (not isController(msg.caller)) {
       D.trap("Unauthorized: Only controllers can mint tokens");
     };
+
+    let ownerCheck = await icrc7_owner_of([tokens[0].token_id]);
+    if (ownerCheck[0] != null) {
+      D.trap("Token ID already exists");
+    };
+
     //for now we require an owner to mint.
     switch (icrc7().set_nfts<system>(msg.caller, tokens, true)) {
       case (#ok(val)) val;
@@ -686,6 +692,7 @@ shared (_init_msg) actor class LCT(
   };
 
   // Store fractional ownership data
+  private stable var fractionalNFTsEntries : [(Nat, FractionalNFTData)] = [];
   private var fractionalNFTs = HashMap.HashMap<Nat, FractionalNFTData>(0, Nat.equal, Hash.hash);
 
   // Query Functions
@@ -1175,102 +1182,19 @@ shared (_init_msg) actor class LCT(
 
   // ================================================================================================================================================================================================================================================
 
-  let ICP_FEE : Nat64 = 10_000;
-
-  let ledger : actor {
-    transfer : shared (
-      args : {
-        memo : Nat64;
-        amount : { e8s : Nat64 };
-        fee : { e8s : Nat64 };
-        from_subaccount : ?[Nat8];
-        to : [Nat8];
-        created_at_time : ?{ timestamp_nanos : Nat64 };
-      }
-    ) -> async {
-      #Ok : Nat64;
-      #Err : {
-        #InsufficientFunds : { balance : { e8s : Nat64 } };
-        #TxTooOld : { allowed_window_nanos : Nat64 };
-        #TxCreatedInFuture;
-        #TxDuplicate : { duplicate_of : Nat64 };
-      };
-    };
-    account_balance : shared query { account : [Nat8] } -> async { e8s : Nat64 };
-    transfer_from : shared (
-      args : {
-        spender_subaccount : ?[Nat8];
-        from : { owner : Principal; subaccount : ?[Nat8] };
-        to : { owner : Principal; subaccount : ?[Nat8] };
-        amount : { e8s : Nat64 };
-        fee : { e8s : Nat64 };
-        memo : ?[Nat8];
-        created_at_time : ?{ timestamp_nanos : Nat64 };
-      }
-    ) -> async {
-      #Ok : Nat64;
-      #Err : {
-        #InsufficientFunds : { balance : { e8s : Nat64 } };
-        #TxTooOld : { allowed_window_nanos : Nat64 };
-        #TxCreatedInFuture;
-        #TxDuplicate : { duplicate_of : Nat64 };
-      };
-    };
-  } = actor ("ryjl3-tyaaa-aaaaa-aaaba-cai");
-
-  // Get ICP balance
-  public shared func getICPBalance(principal : Principal) : async Result.Result<Nat64, Text> {
-    try {
-      let accountId = Principal.toLedgerAccount(principal, null);
-      let balance = await ledger.account_balance({
-        account = Blob.toArray(accountId);
-      });
-      #ok(balance.e8s);
-    } catch (err) {
-      #err("Failed to get balance: " # Error.message(err));
-    };
+  // Before upgrade: Convert HashMap to stable array
+  system func preupgrade() {
+    fractionalNFTsEntries := Iter.toArray(fractionalNFTs.entries());
   };
 
-  // Transfer ICP from user's balance
-  public shared (msg) func transfer_icp(to : Principal, amount : Nat64) : async Result.Result<Nat64, Text> {
-    if (amount < ICP_FEE) {
-      return #err("Amount must be greater than fee: " # debug_show (ICP_FEE));
-    };
-
-    try {
-      let transferResult = await ledger.transfer_from({
-        spender_subaccount = null;
-        from = {
-          owner = msg.caller;
-          subaccount = null;
-        };
-        to = {
-          owner = to;
-          subaccount = null;
-        };
-        amount = { e8s = amount };
-        fee = { e8s = ICP_FEE };
-        memo = null;
-        created_at_time = null;
-      });
-
-      switch (transferResult) {
-        case (#Ok(blockIndex)) { #ok(blockIndex) };
-        case (#Err(#InsufficientFunds { balance })) {
-          #err("Insufficient funds. Balance: " # debug_show (balance));
-        };
-        case (#Err(#TxTooOld { allowed_window_nanos })) {
-          #err("Transaction too old");
-        };
-        case (#Err(#TxCreatedInFuture)) {
-          #err("Transaction created in future");
-        };
-        case (#Err(#TxDuplicate { duplicate_of })) {
-          #err("Duplicate transaction");
-        };
-      };
-    } catch (error) {
-      #err("Failed to transfer: " # Error.message(error));
-    };
+  // After upgrade: Convert stable array back to HashMap
+  system func postupgrade() {
+    fractionalNFTs := HashMap.fromIter<Nat, FractionalNFTData>(
+      fractionalNFTsEntries.vals(),
+      fractionalNFTsEntries.size(),
+      Nat.equal,
+      Hash.hash,
+    );
+    fractionalNFTsEntries := []; // Clear the array since data is now in HashMap
   };
 };
